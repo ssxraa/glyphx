@@ -36,3 +36,22 @@ export async function compileLatex(source: string): Promise<CompileOutcome> {
 		return { error: String(e) };
 	}
 }
+
+/**
+ * Compile a multi-file project on disk via Tectonic, run against the real
+ * project folder so `\input`, `\includegraphics`, `\bibliography` etc. resolve.
+ * `mainRel` is the main file's path relative to `root`.
+ */
+export async function compileProject(root: string, mainRel: string): Promise<CompileOutcome> {
+	if (!isTauri()) {
+		return { error: 'Compilation runs in the Glyph desktop app.' };
+	}
+	try {
+		const res = await invoke<RawCompileResult>('compile_project', { root, main: mainRel });
+		if (res.success && res.pdf_base64)
+			return { pdf: res.pdf_base64, log: res.log, synctex: res.synctex ?? undefined };
+		return { log: res.log, error: res.message ?? 'Compilation failed.' };
+	} catch (e) {
+		return { error: String(e) };
+	}
+}

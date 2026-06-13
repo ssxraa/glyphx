@@ -13,11 +13,12 @@
 	  IconChevronRight,
 	  IconChevronUp,
 	  IconChevronDown,
+	  IconFolderOpen,
 	  IconGitBranch,
 	  IconMinus,
 	  IconPlus,
 	  IconReplace,
-	  IconSearch
+	  IconReplaceFilled
 	} from '@tabler/icons-svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
@@ -45,11 +46,18 @@
 		view = 'files',
 		files = [],
 		activeId = '',
+		mainId = null,
 		projectName = 'Project',
+		hasProject = false,
 		widthPx = 240,
 		engine,
 		onopen,
 		onnew,
+		onopenfolder,
+		onrenamefile,
+		ondeletefile,
+		onsetmain,
+		onregistershell,
 		searchResults = [],
 		searchActive = 0,
 		onsearch,
@@ -62,11 +70,21 @@
 		view?: ActivityView;
 		files?: FileMeta[];
 		activeId?: string;
+		/** Absolute path / id of the project's main (compile-target) file. */
+		mainId?: string | null;
 		projectName?: string;
+		/** Whether a folder-based project host is available (enables Open Folder). */
+		hasProject?: boolean;
 		widthPx?: number;
 		engine?: EngineManager;
 		onopen?: (id: string) => void;
 		onnew?: () => void;
+		onopenfolder?: () => void;
+		onrenamefile?: (id: string, name: string) => void;
+		ondeletefile?: (id: string) => void;
+		onsetmain?: (id: string) => void;
+		/** Register the OS "Open with Glyph" folder integration (desktop). */
+		onregistershell?: () => void;
 		searchResults?: SearchMatch[];
 		searchActive?: number;
 		onsearch?: (o: SearchOptions) => void;
@@ -204,18 +222,30 @@
 	>
 		<span>{heading}</span>
 		{#if view === 'files'}
-			<button
-				class="hover:bg-muted hover:text-foreground -mr-1 grid size-6 place-items-center rounded transition-colors"
-				title="New file"
-				aria-label="New file"
-				onclick={() => onnew?.()}
-			>
-				<IconPlus size={15} />
-			</button>
+			<div class="-mr-1 flex items-center gap-0.5">
+				<button
+					class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+					title="New file"
+					aria-label="New file"
+					onclick={() => onnew?.()}
+				>
+					<IconPlus size={15} />
+				</button>
+				{#if hasProject}
+					<button
+						class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+						title="Open folder (⌘/Ctrl+O)"
+						aria-label="Open folder"
+						onclick={() => onopenfolder?.()}
+					>
+						<IconFolderOpen size={15} />
+					</button>
+				{/if}
+			</div>
 		{/if}
 	</div>
 
-	<div class="min-h-0 flex-1 overflow-auto px-2 pb-2 text-sm">
+	<div class="min-h-0 flex-1 overflow-auto px-1.5 pb-2 text-[13px]">
 		{#if view === 'files'}
 			<!-- Workspace root header (the project / directory name, VS Code style). -->
 			<button
@@ -233,14 +263,23 @@
 			</button>
 			{#if rootExpanded}
 				<div transition:slide={{ duration: 200, easing: cubicOut }}>
-					<FileTree nodes={rootNodes} {activeId} bind:open={treeOpen} onopen={(id) => onopen?.(id)} />
+					<FileTree
+						nodes={rootNodes}
+						{activeId}
+						{mainId}
+						bind:open={treeOpen}
+						onopen={(id) => onopen?.(id)}
+						onrename={(id, name) => onrenamefile?.(id, name)}
+						ondelete={(id) => ondeletefile?.(id)}
+						onsetmain={hasProject ? (id) => onsetmain?.(id) : undefined}
+					/>
 				</div>
 			{/if}
 		{:else if view === 'search'}
-			<div class="flex flex-col gap-2 px-1 pt-1">
-				<div class="flex items-start gap-1">
+			<div class="flex flex-col gap-1 pt-0.5">
+				<div class="flex items-start gap-0.5">
 					<button
-						class="text-muted-foreground hover:bg-muted hover:text-foreground mt-1 grid size-6 shrink-0 place-items-center rounded transition-colors"
+						class="text-muted-foreground hover:bg-muted hover:text-foreground mt-0.5 grid size-5 shrink-0 place-items-center rounded transition-colors"
 						title={showReplace ? 'Hide replace' : 'Toggle replace'}
 						aria-label="Toggle replace"
 						aria-expanded={showReplace}
@@ -252,49 +291,47 @@
 						/>
 					</button>
 
-					<div class="flex min-w-0 flex-1 flex-col gap-1.5">
-						<!-- Find -->
+					<div class="flex min-w-0 flex-1 flex-col gap-1">
+						<!-- Find — toggles live inside the field (VS Code parity) -->
 						<div class="relative">
-							<IconSearch
-								size={15}
-								class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
-							/>
 							<input
 								bind:this={searchInputEl}
 								bind:value={query}
 								oninput={emitSearch}
 								onkeydown={onSearchKeydown}
-								class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 w-full rounded-md border py-1.5 pr-2 pl-8 text-sm outline-none transition-[box-shadow,border-color] focus-visible:ring-2"
+								class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-7 w-full rounded border py-1 pr-16 pl-2 text-[13px] outline-none transition-[box-shadow,border-color] focus-visible:ring-1"
 								placeholder="Find"
 								aria-label="Find in document"
 								spellcheck="false"
 							/>
+							<div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
+								{#each findOptions as opt (opt.key)}
+									<button
+										class="grid size-[18px] place-items-center rounded font-mono text-[10px] leading-none transition-colors {opt.on
+											? 'bg-brand-subtle text-brand'
+											: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+										title={opt.title}
+										aria-label={opt.title}
+										aria-pressed={opt.on}
+										onclick={opt.toggle}
+									>
+										{opt.label}
+									</button>
+								{/each}
+							</div>
 						</div>
 
-						<!-- Toggles + match count + nav -->
+						<!-- Match count + nav -->
 						<div class="flex items-center gap-1">
-							{#each findOptions as opt (opt.key)}
-								<button
-									class="grid size-6 place-items-center rounded font-mono text-[11px] leading-none transition-colors {opt.on
-										? 'bg-brand-subtle text-brand'
-										: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-									title={opt.title}
-									aria-label={opt.title}
-									aria-pressed={opt.on}
-									onclick={opt.toggle}
-								>
-									{opt.label}
-								</button>
-							{/each}
-							<span class="text-muted-foreground/70 ml-auto text-xs tabular-nums">
+							<span class="text-muted-foreground/70 text-xs tabular-nums">
 								{#if query && searchResults.length}
-									{searchActive + 1}/{searchResults.length}
+									{searchActive + 1} of {searchResults.length}
 								{:else if query}
 									No results
 								{/if}
 							</span>
 							<button
-								class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:opacity-40"
+								class="text-muted-foreground hover:bg-muted hover:text-foreground ml-auto grid size-5 place-items-center rounded transition-colors disabled:opacity-40"
 								title="Previous match (Shift+Enter)"
 								aria-label="Previous match"
 								disabled={!searchResults.length}
@@ -303,7 +340,7 @@
 								<IconChevronUp size={15} />
 							</button>
 							<button
-								class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:opacity-40"
+								class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-5 place-items-center rounded transition-colors disabled:opacity-40"
 								title="Next match (Enter)"
 								aria-label="Next match"
 								disabled={!searchResults.length}
@@ -313,38 +350,36 @@
 							</button>
 						</div>
 
-						<!-- Replace -->
+						<!-- Replace — "replace all" button lives inside the field -->
 						{#if showReplace}
 							<div class="relative">
-								<IconReplace
-									size={15}
-									class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
-								/>
 								<input
 									bind:value={replace}
-									class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 w-full rounded-md border py-1.5 pr-2 pl-8 text-sm outline-none transition-[box-shadow,border-color] focus-visible:ring-2"
+									class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-7 w-full rounded border py-1 pr-12 pl-2 text-[13px] outline-none transition-[box-shadow,border-color] focus-visible:ring-1"
 									placeholder={useRegex ? 'Replace ($1, $&…)' : 'Replace'}
 									aria-label="Replace with"
 									spellcheck="false"
 								/>
-							</div>
-							<div class="flex items-center gap-1.5">
-								<Button
-									variant="outline"
-									size="xs"
-									disabled={!searchResults.length}
-									onclick={() => onreplacecurrent?.(replace)}
-								>
-									Replace
-								</Button>
-								<Button
-									variant="secondary"
-									size="xs"
-									disabled={!searchResults.length}
-									onclick={() => onreplaceall?.(replace)}
-								>
-									Replace all
-								</Button>
+								<div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
+									<button
+										class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-[18px] place-items-center rounded transition-colors disabled:opacity-40"
+										title="Replace next match"
+										aria-label="Replace next match"
+										disabled={!searchResults.length}
+										onclick={() => onreplacecurrent?.(replace)}
+									>
+										<IconReplace size={14} />
+									</button>
+									<button
+										class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-[18px] place-items-center rounded transition-colors disabled:opacity-40"
+										title="Replace all matches"
+										aria-label="Replace all matches"
+										disabled={!searchResults.length}
+										onclick={() => onreplaceall?.(replace)}
+									>
+										<IconReplaceFilled size={14} />
+									</button>
+								</div>
 							</div>
 						{/if}
 					</div>
@@ -356,17 +391,17 @@
 						{#each searchResults.slice(0, 500) as m, i (i)}
 							<li>
 								<button
-									class="flex w-full items-baseline gap-2 rounded px-2 py-1 text-left transition-colors {i ===
+									class="flex w-full items-baseline gap-1.5 rounded px-2 py-0.5 text-left transition-colors {i ===
 									searchActive
 										? 'bg-accent text-accent-foreground'
 										: 'hover:bg-muted text-muted-foreground'}"
 									onclick={() => ongotoresult?.(i)}
 									title={`Line ${m.line}`}
 								>
-									<span class="text-muted-foreground/60 shrink-0 font-mono text-[10px] tabular-nums">
+									<span class="text-muted-foreground/50 w-7 shrink-0 text-right font-mono text-[10px] tabular-nums">
 										{m.line}
 									</span>
-									<span class="truncate font-mono text-xs">{m.text.trim() || ' '}</span>
+									<span class="truncate font-mono text-[11px]">{m.text.trim() || ' '}</span>
 								</button>
 							</li>
 						{/each}
@@ -376,11 +411,9 @@
 							Showing first 500 of {searchResults.length}.
 						</p>
 					{/if}
-				{:else}
-					<p class="text-muted-foreground mt-2 px-1 text-xs leading-relaxed">
-						Find &amp; replace in the active document. Use <span class="font-mono">Aa</span> /
-						<span class="font-mono">W</span> / <span class="font-mono">.*</span> for case, whole-word
-						and regex. Enter / Shift+Enter to step through matches.
+				{:else if !query}
+					<p class="text-muted-foreground/70 mt-1 px-1.5 text-[11px]">
+						Find &amp; replace in the active file.
 					</p>
 				{/if}
 			</div>
@@ -394,9 +427,9 @@
 			</div>
 		{:else}
 			<!-- Settings -->
-			<div class="flex flex-col gap-5 px-1 py-2">
-				<div class="flex flex-col gap-2">
-					<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+			<div class="flex flex-col gap-3 px-1 pt-0.5 pb-2">
+				<div class="flex flex-col gap-1">
+					<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
 						Appearance
 					</span>
 					<Segmented
@@ -408,8 +441,8 @@
 					/>
 				</div>
 
-				<div class="flex flex-col gap-2">
-					<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+				<div class="flex flex-col gap-1">
+					<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
 						LaTeX grammar
 					</span>
 					<Segmented
@@ -421,8 +454,8 @@
 					/>
 				</div>
 
-				<div class="flex flex-col gap-2">
-					<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+				<div class="flex flex-col gap-1">
+					<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
 						Editor font
 					</span>
 					<Segmented
@@ -434,9 +467,9 @@
 					/>
 				</div>
 
-				<div class="flex items-center justify-between gap-3">
-					<span class="text-foreground text-sm">Editor font size</span>
-					<div class="flex items-center gap-1.5">
+				<div class="flex items-center justify-between gap-2">
+					<span class="text-foreground text-[13px]">Editor font size</span>
+					<div class="flex items-center gap-1">
 						<Button
 							variant="outline"
 							size="icon-sm"
@@ -446,7 +479,7 @@
 						>
 							<IconMinus size={15} />
 						</Button>
-						<span class="text-foreground w-10 text-center text-sm tabular-nums">
+						<span class="text-foreground w-9 text-center text-[13px] tabular-nums">
 							{settings.fontSize}px
 						</span>
 						<Button
@@ -463,8 +496,8 @@
 
 				<div class="bg-border h-px"></div>
 
-				<label class="flex cursor-pointer items-center justify-between gap-3">
-					<span class="text-foreground text-sm">Line wrapping</span>
+				<label class="flex cursor-pointer items-center justify-between gap-2">
+					<span class="text-foreground text-[13px]">Line wrapping</span>
 					<Switch
 						checked={settings.lineWrapping}
 						onCheckedChange={(v) => (settings.lineWrapping = v)}
@@ -472,10 +505,10 @@
 					/>
 				</label>
 
-				<label class="flex cursor-pointer items-center justify-between gap-3">
+				<label class="flex cursor-pointer items-center justify-between gap-2">
 					<div class="flex flex-col">
-						<span class="text-foreground text-sm">Live compile</span>
-						<span class="text-muted-foreground text-xs">Recompile as you type</span>
+						<span class="text-foreground text-[13px]">Live compile</span>
+						<span class="text-muted-foreground text-[11px]">Recompile as you type</span>
 					</div>
 					<Switch
 						checked={settings.autoCompile}
@@ -486,6 +519,22 @@
 
 				{#if engine}
 					<EngineSettings {engine} />
+				{/if}
+
+				{#if onregistershell}
+					<div class="bg-border h-px"></div>
+					<div class="flex flex-col gap-1.5">
+						<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+							System integration
+						</span>
+						<p class="text-muted-foreground text-[11px] leading-relaxed">
+							Add an “Open with Glyph” entry to the folder right-click menu. (.tex and
+							.glyx files are associated by the installer.)
+						</p>
+						<Button variant="outline" size="xs" class="self-start" onclick={() => onregistershell?.()}>
+							Add “Open with Glyph”
+						</Button>
+					</div>
 				{/if}
 			</div>
 		{/if}

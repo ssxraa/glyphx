@@ -131,10 +131,10 @@
 
 <div class="flex flex-col gap-2">
 	<div class="flex items-center justify-between">
-		<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+		<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
 			{engine.label} engine
 		</span>
-		<Button variant="ghost" size="sm" onclick={refresh} disabled={loading}>
+		<Button variant="ghost" size="xs" onclick={refresh} disabled={loading}>
 			{loading ? 'Checking…' : 'Check versions'}
 		</Button>
 	</div>
@@ -153,8 +153,8 @@
 		<div class="flex flex-col gap-1">
 			{#each versions.slice(0, 8) as v (v.version)}
 				{@const nightly = v.version === 'nightly'}
-				<div class="border-border flex items-center gap-2 rounded-md border px-2 py-1.5">
-					<span class="text-foreground text-sm {nightly ? 'capitalize' : 'tabular-nums'}">
+				<div class="border-border flex items-center gap-2 rounded-md border px-2 py-1">
+					<span class="text-foreground text-[13px] {nightly ? 'capitalize' : 'tabular-nums'}">
 						{v.version}
 					</span>
 					{#if nightly}
@@ -187,16 +187,16 @@
 	{/if}
 
 	{#if engine.cacheInfo}
-		<div class="border-border/60 mt-1 flex flex-col gap-2 border-t pt-3">
+		<div class="border-border/60 mt-1 flex flex-col gap-1.5 border-t pt-2">
 			<div class="flex items-center justify-between">
-				<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+				<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
 					Package cache
 				</span>
 				{#if cache}
 					<span class="text-muted-foreground/70 text-xs tabular-nums">{fmtBytes(cache.bytes)}</span>
 				{/if}
 			</div>
-			<p class="text-muted-foreground text-xs leading-relaxed">
+			<p class="text-muted-foreground text-[11px] leading-relaxed">
 				Packages download on demand and cache here for offline use. Pre-warm common ones, or clear
 				to reclaim space.
 			</p>

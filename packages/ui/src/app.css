@@ -337,6 +337,21 @@
 		outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
 	}
 
+	/* Interactive elements get a pointer cursor by default (browsers leave
+	   <button> as an arrow). Disabled controls fall back to the default. */
+	button:not(:disabled):not([disabled]),
+	[role='button']:not([aria-disabled='true']),
+	summary,
+	label:has(> input[type='checkbox']:not(:disabled)),
+	label:has(> input[type='radio']:not(:disabled)) {
+		cursor: pointer;
+	}
+	:disabled,
+	[disabled],
+	[aria-disabled='true'] {
+		cursor: default;
+	}
+
 	html {
 		-webkit-text-size-adjust: 100%;
 		text-rendering: optimizeLegibility;
@@ -366,4 +381,15 @@
 	::selection {
 		background-color: color-mix(in oklab, var(--foreground) 14%, transparent);
 	}
+}
+
+/* Unlayered (wins over Tailwind utilities): menu / option / tab items hard-code
+   `cursor-default` in their base components, but they're clickable — give them a
+   pointer. Disabled items keep the default. */
+[role='menuitem']:not([data-disabled]):not([aria-disabled='true']),
+[role='menuitemcheckbox']:not([data-disabled]):not([aria-disabled='true']),
+[role='menuitemradio']:not([data-disabled]):not([aria-disabled='true']),
+[role='option']:not([data-disabled]):not([aria-disabled='true']),
+[role='tab']:not([data-disabled]):not([aria-disabled='true']) {
+	cursor: pointer;
 }

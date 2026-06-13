@@ -36,6 +36,20 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["tex"],
+        "name": "LaTeX Document",
+        "description": "LaTeX source document",
+        "role": "Editor"
+      },
+      {
+        "ext": ["glyx"],
+        "name": "Glyph Project",
+        "description": "Glyph LaTeX project",
+        "role": "Editor"
+      }
+    ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

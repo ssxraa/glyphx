@@ -85,9 +85,9 @@ pub async fn prefetch_packages(app: tauri::AppHandle) -> Result<CompileResult, S
     compile_latex(app, WARM.to_string()).await
 }
 
-/// Read and gunzip `main.synctex.gz` from the output dir, if present.
-fn read_synctex(dir: &std::path::Path) -> Option<String> {
-    let path = dir.join("main.synctex.gz");
+/// Read and gunzip `<stem>.synctex.gz` from the output dir, if present.
+fn read_synctex(dir: &std::path::Path, stem: &str) -> Option<String> {
+    let path = dir.join(format!("{stem}.synctex.gz"));
     let bytes = std::fs::read(path).ok()?;
     let mut decoder = flate2::read::GzDecoder::new(&bytes[..]);
     let mut text = String::new();
@@ -138,52 +138,55 @@ pub fn find_tectonic(app: &tauri::AppHandle) -> PathBuf {
     PathBuf::from("tectonic")
 }
 
-/// Compile a LaTeX `source` string into a PDF.
-#[tauri::command]
-pub async fn compile_latex(app: tauri::AppHandle, source: String) -> Result<CompileResult, String> {
-    let dir = tempfile::tempdir().map_err(|e| e.to_string())?;
-    let tex_path = dir.path().join("main.tex");
-    std::fs::write(&tex_path, &source).map_err(|e| e.to_string())?;
+/// Run Tectonic on `main_tex`, writing build artifacts to `outdir`, and assemble
+/// the result. Tectonic resolves `\input`, `\includegraphics`, `\bibliography`
+/// etc. relative to the main file's own directory, so multi-file projects work
+/// as long as `main_tex` lives in the project folder. The PDF / log / synctex
+/// are named after the main file's stem (e.g. `report.tex` → `report.pdf`).
+fn run_tectonic(app: &tauri::AppHandle, main_tex: &std::path::Path, outdir: &std::path::Path) -> CompileResult {
+    let stem = main_tex
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "main".to_string());
 
-    let bin = find_tectonic(&app);
+    let bin = find_tectonic(app);
     let mut cmd = Command::new(&bin);
     cmd.arg("--outdir")
-        .arg(dir.path())
+        .arg(outdir)
         .arg("--keep-logs")
         .arg("--synctex")
         .arg("--chatter")
         .arg("minimal")
-        .arg(&tex_path);
+        .arg(main_tex);
     // Deterministic, app-managed package cache (so Settings can show/clear/warm it).
-    if let Some(cache) = crate::engine::cache_dir(&app) {
+    if let Some(cache) = crate::engine::cache_dir(app) {
         cmd.env("TECTONIC_CACHE_DIR", cache);
     }
     // Give fontconfig a real config so XeTeX font lookups don't emit the
     // "Cannot load default config file" noise (Windows; harmless elsewhere).
-    if let Some(conf) = ensure_fontconfig(&app) {
+    if let Some(conf) = ensure_fontconfig(app) {
         cmd.env("FONTCONFIG_FILE", conf);
     }
-    let output = cmd.output();
 
-    let output = match output {
+    let output = match cmd.output() {
         Ok(o) => o,
         Err(e) => {
-            return Ok(CompileResult::failure(
+            return CompileResult::failure(
                 format!(
                     "Could not run Tectonic ({}). Install it (e.g. `choco install tectonic`) \
                      or set GLYPH_TECTONIC_BIN. Underlying error: {e}",
                     bin.display()
                 ),
                 String::new(),
-            ));
+            );
         }
     };
 
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    // The TeX engine log (`main.log`) carries the structured `! error` blocks,
+    // The TeX engine log (`<stem>.log`) carries the structured `! error` blocks,
     // `l.<n>` line numbers and `LaTeX Warning ... on input line <n>` that the
     // frontend parses. Combine it with Tectonic's concise stderr summary.
-    let tex_log = std::fs::read_to_string(dir.path().join("main.log")).unwrap_or_default();
+    let tex_log = std::fs::read_to_string(outdir.join(format!("{stem}.log"))).unwrap_or_default();
     let log = if tex_log.is_empty() {
         stderr.clone()
     } else {
@@ -214,24 +217,63 @@ pub async fn compile_latex(app: tauri::AppHandle, source: String) -> Result<Comp
         } else {
             "LaTeX compilation failed.".to_string()
         };
-        return Ok(CompileResult::failure(message, log));
+        return CompileResult::failure(message, log);
     }
 
-    let pdf_path = dir.path().join("main.pdf");
+    let pdf_path = outdir.join(format!("{stem}.pdf"));
     match std::fs::read(&pdf_path) {
-        Ok(bytes) => Ok(CompileResult {
+        Ok(bytes) => CompileResult {
             success: true,
             pdf_base64: Some(general_purpose::STANDARD.encode(bytes)),
             log,
             message: None,
-            synctex: read_synctex(dir.path()),
-        }),
+            synctex: read_synctex(outdir, &stem),
+        },
         Err(e) => {
             eprintln!("[glyph] Tectonic reported success but no PDF was found: {e}");
-            Ok(CompileResult::failure(
+            CompileResult::failure(
                 format!("Tectonic reported success but no PDF was found: {e}"),
                 log,
-            ))
+            )
         }
     }
+}
+
+/// Compile a standalone LaTeX `source` string into a PDF (no project on disk).
+/// Used for the in-memory scratch / sample document and the web fallback.
+#[tauri::command]
+pub async fn compile_latex(app: tauri::AppHandle, source: String) -> Result<CompileResult, String> {
+    let dir = tempfile::tempdir().map_err(|e| e.to_string())?;
+    let tex_path = dir.path().join("main.tex");
+    std::fs::write(&tex_path, &source).map_err(|e| e.to_string())?;
+    Ok(run_tectonic(&app, &tex_path, dir.path()))
+}
+
+/// Compile a multi-file project on disk. `root` is the project folder and `main`
+/// is the main `.tex` file's path (relative to `root`, or absolute). Build
+/// artifacts go to a throwaway temp dir so the project folder stays clean, while
+/// Tectonic still resolves includes relative to the main file inside `root`.
+#[tauri::command]
+pub async fn compile_project(
+    app: tauri::AppHandle,
+    root: String,
+    main: String,
+) -> Result<CompileResult, String> {
+    let root = PathBuf::from(&root);
+    let main_path = {
+        let p = PathBuf::from(&main);
+        if p.is_absolute() {
+            p
+        } else {
+            root.join(&main)
+        }
+    };
+    if !main_path.exists() {
+        return Ok(CompileResult::failure(
+            format!("Main file not found: {}", main_path.display()),
+            String::new(),
+        ));
+    }
+    let out = tempfile::tempdir().map_err(|e| e.to_string())?;
+    Ok(run_tectonic(&app, &main_path, out.path()))
 }

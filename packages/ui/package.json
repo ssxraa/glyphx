@@ -17,6 +17,10 @@
       "svelte": "./src/lib/state/settings.svelte.ts",
       "default": "./src/lib/state/settings.svelte.ts"
     },
+    "./projects": {
+      "svelte": "./src/lib/state/projects.svelte.ts",
+      "default": "./src/lib/state/projects.svelte.ts"
+    },
     "./editor": {
       "svelte": "./src/lib/editor/index.ts",
       "default": "./src/lib/editor/index.ts"
@@ -68,6 +72,10 @@
     "./dropdown-menu": {
       "svelte": "./src/components/ui/dropdown-menu/index.ts",
       "default": "./src/components/ui/dropdown-menu/index.ts"
+    },
+    "./menubar": {
+      "svelte": "./src/components/ui/menubar/index.ts",
+      "default": "./src/components/ui/menubar/index.ts"
     },
     "./kbd": {
       "svelte": "./src/components/ui/kbd/index.ts",

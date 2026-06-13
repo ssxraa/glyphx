@@ -13,7 +13,14 @@
 		crosshairCursor,
 	} from "@codemirror/view";
 	import { EditorState, Compartment } from "@codemirror/state";
-	import { history, historyKeymap, defaultKeymap, indentWithTab } from "@codemirror/commands";
+	import {
+		history,
+		historyKeymap,
+		defaultKeymap,
+		indentWithTab,
+		undo as cmUndo,
+		redo as cmRedo,
+	} from "@codemirror/commands";
 	import {
 		indentOnInput,
 		indentUnit,
@@ -231,6 +238,22 @@
 
 	export function focusEditor() {
 		view?.focus();
+	}
+
+	/** Undo / redo the last edit (wired to the Edit menu + native shortcuts). */
+	export function undo() {
+		const v = view;
+		if (v) {
+			cmUndo(v);
+			v.focus();
+		}
+	}
+	export function redo() {
+		const v = view;
+		if (v) {
+			cmRedo(v);
+			v.focus();
+		}
 	}
 
 	/** Scroll to and place the caret on a 1-based line (SyncTeX reverse search). */

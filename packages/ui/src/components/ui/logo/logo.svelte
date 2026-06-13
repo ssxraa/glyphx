@@ -27,12 +27,15 @@
 		badge = true,
 		size = 'md',
 		href,
+		viewTransitionName,
 		class: className = ''
 	}: {
 		text?: boolean;
 		badge?: boolean;
 		size?: LogoSize | number;
 		href?: string;
+		/** Opt-in `view-transition-name` so the logo can stay pinned across pages. */
+		viewTransitionName?: string;
 		class?: string;
 	} = $props();
 
@@ -67,6 +70,7 @@
 	this={href ? 'a' : 'span'}
 	{href}
 	class={cn('inline-flex shrink-0 items-center gap-2', className)}
+	style:view-transition-name={viewTransitionName}
 	aria-label="Glyph"
 >
 	{#if badge}

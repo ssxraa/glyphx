@@ -13,99 +13,53 @@
 </script>
 
 <script lang="ts">
-	import { IconCheck } from '@tabler/icons-svelte';
-	import { cubicOut } from 'svelte/easing';
-	import { fly } from 'svelte/transition';
+	import {
+		Menubar,
+		MenubarCheckboxItem,
+		MenubarContent,
+		MenubarItem,
+		MenubarMenu,
+		MenubarSeparator,
+		MenubarShortcut,
+		MenubarTrigger
+	} from '@glyph/ui/menubar';
 
 	/**
-	 * MenuBar — a VS Code-style application menu (File · Edit · View …). Click a
-	 * top item to open it; once any menu is open, hovering another switches to it
-	 * (the classic menubar feel). Driven entirely by a `menus` config so the host
-	 * owns the actions. Calm, semantic-token chrome.
+	 * MenuBar — the VS Code-style application menu (File · Edit · View …), a thin
+	 * adapter over the native shadcn/bits-ui `Menubar` (keyboard nav, hover-to-
+	 * switch, built-in open/close animation). Driven by a `menus` config so the
+	 * host owns the actions; entries with a `checked` flag render as toggles.
 	 */
 	let { menus }: { menus: Menu[] } = $props();
 
-	let openIndex = $state<number | null>(null);
-	let rootEl = $state<HTMLElement>();
-
 	const isSep = (e: MenuEntry): e is MenuSeparator => e.type === 'separator';
-
-	function toggle(i: number) {
-		openIndex = openIndex === i ? null : i;
-	}
-	function hoverSwitch(i: number) {
-		if (openIndex !== null) openIndex = i; // only switch when a menu is already open
-	}
-	function close() {
-		openIndex = null;
-	}
-
-	$effect(() => {
-		if (openIndex === null) return;
-		const onDown = (e: MouseEvent) => {
-			if (rootEl && !rootEl.contains(e.target as Node)) close();
-		};
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') close();
-		};
-		document.addEventListener('mousedown', onDown);
-		document.addEventListener('keydown', onKey);
-		return () => {
-			document.removeEventListener('mousedown', onDown);
-			document.removeEventListener('keydown', onKey);
-		};
-	});
 </script>
 
-<div bind:this={rootEl} class="flex items-center" role="menubar" aria-label="Application menu">
-	{#each menus as menu, i (menu.label)}
-		<div class="relative">
-			<button
-				class="flex h-7 items-center rounded-md px-2 text-[13px] transition-colors {openIndex === i
-					? 'bg-muted text-foreground'
-					: 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}"
-				role="menuitem"
-				aria-haspopup="true"
-				aria-expanded={openIndex === i}
-				onclick={() => toggle(i)}
-				onmouseenter={() => hoverSwitch(i)}
-			>
-				{menu.label}
-			</button>
-
-			{#if openIndex === i}
-				<div
-					class="border-border bg-popover text-popover-foreground shadow-craft-floating absolute top-full left-0 z-50 mt-1 min-w-56 rounded-lg border p-1"
-					role="menu"
-					transition:fly={{ y: -4, duration: 140, easing: cubicOut }}
-				>
-					{#each menu.items as entry, j (j)}
-						{#if isSep(entry)}
-							<div class="bg-border/70 my-1 h-px"></div>
-						{:else}
-							<button
-								class="text-foreground hover:bg-muted disabled:hover:bg-transparent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-								role="menuitem"
-								disabled={entry.disabled}
-								onclick={() => {
-									entry.run?.();
-									close();
-								}}
-							>
-								<span class="grid w-4 shrink-0 place-items-center">
-									{#if entry.checked}<IconCheck size={14} class="text-brand" />{/if}
-								</span>
-								<span class="flex-1">{entry.label}</span>
-								{#if entry.shortcut}
-									<span class="text-muted-foreground/60 ml-6 font-mono text-[11px]">
-										{entry.shortcut}
-									</span>
-								{/if}
-							</button>
-						{/if}
-					{/each}
-				</div>
-			{/if}
-		</div>
+<Menubar aria-label="Application menu">
+	{#each menus as menu (menu.label)}
+		<MenubarMenu>
+			<MenubarTrigger>{menu.label}</MenubarTrigger>
+			<MenubarContent>
+				{#each menu.items as entry, j (j)}
+					{#if isSep(entry)}
+						<MenubarSeparator />
+					{:else if entry.checked !== undefined}
+						<MenubarCheckboxItem
+							checked={entry.checked}
+							disabled={entry.disabled}
+							onCheckedChange={() => entry.run?.()}
+						>
+							{entry.label}
+							{#if entry.shortcut}<MenubarShortcut>{entry.shortcut}</MenubarShortcut>{/if}
+						</MenubarCheckboxItem>
+					{:else}
+						<MenubarItem disabled={entry.disabled} onSelect={() => entry.run?.()}>
+							{entry.label}
+							{#if entry.shortcut}<MenubarShortcut>{entry.shortcut}</MenubarShortcut>{/if}
+						</MenubarItem>
+					{/if}
+				{/each}
+			</MenubarContent>
+		</MenubarMenu>
 	{/each}
-</div>
+</Menubar>
