@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Switch as SwitchPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "@glyph/ui/utils";
+	import { cn, type WithoutChildrenOrChild } from "@glyphx/ui/utils";
 
 	/**
 	 * Switch — a Mac-native toggle. The track turns emerald (`--brand`) when on —

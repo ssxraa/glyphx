@@ -1,5 +1,5 @@
 /**
- * Glyph settings — appearance (theme) + editor preferences.
+ * GlyphX settings — appearance (theme) + editor preferences.
  *
  * Built on {@link PersistedState}, so every setting is persisted to
  * localStorage and synced live across every Tauri window / browser tab that
@@ -72,8 +72,8 @@ export const EDITOR_DEFAULTS: EditorSettings = {
 /** Debounce (ms) before an edit triggers an automatic recompile. */
 export const COMPILE_DEBOUNCE_MS = 650;
 
-export const APPEARANCE_KEY = "glyph:appearance";
-export const EDITOR_KEY = "glyph:editor";
+export const APPEARANCE_KEY = "glyphx:appearance";
+export const EDITOR_KEY = "glyphx:editor";
 
 const isBrowser = typeof window !== "undefined";
 

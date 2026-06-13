@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { settings } from '@glyph/ui/settings';
+import { settings } from '@glyphx/ui/settings';
 
 /** Shape returned by the Rust `compile_latex` command. */
 type RawCompileResult = {
@@ -13,10 +13,7 @@ type RawCompileResult = {
 export type CompileOutcome = { pdf?: string; log?: string; error?: string; synctex?: string };
 
 function isTauri(): boolean {
-	return (
-		typeof window !== 'undefined' &&
-		('__TAURI_INTERNALS__' in window || 'isTauri' in window)
-	);
+	return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || 'isTauri' in window);
 }
 
 /**
@@ -26,7 +23,7 @@ function isTauri(): boolean {
  */
 export async function compileLatex(source: string): Promise<CompileOutcome> {
 	if (!isTauri()) {
-		return { error: 'Compilation runs in the Glyph desktop app.' };
+		return { error: 'Compilation runs in the GlyphX desktop app.' };
 	}
 	try {
 		const res = await invoke<RawCompileResult>('compile_latex', {
@@ -50,7 +47,7 @@ export async function compileLatex(source: string): Promise<CompileOutcome> {
  */
 export async function compileProject(root: string, mainRel: string): Promise<CompileOutcome> {
 	if (!isTauri()) {
-		return { error: 'Compilation runs in the Glyph desktop app.' };
+		return { error: 'Compilation runs in the GlyphX desktop app.' };
 	}
 	try {
 		const res = await invoke<RawCompileResult>('compile_project', {

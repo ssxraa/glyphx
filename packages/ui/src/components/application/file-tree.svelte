@@ -10,27 +10,32 @@
 		DropdownMenu,
 		DropdownMenuContent,
 		DropdownMenuItem,
+		DropdownMenuSeparator,
 		DropdownMenuTrigger
-	} from '@glyph/ui/dropdown-menu';
+	} from '@glyphx/ui/dropdown-menu';
 	import { slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import {
+		IconFilePlus,
 		IconFileText,
 		IconFolder,
 		IconFolderOpen,
+		IconFolderPlus,
 		IconChevronRight,
 		IconDots,
 		IconPencil,
 		IconTrash,
 		IconTargetArrow
 	} from '@tabler/icons-svelte';
+	import { canDropInto, getDrag, setDrag } from './file-dnd';
 
 	/**
 	 * FileTree — recursive Explorer tree. Folders expand/collapse with a smooth
-	 * `slide` (the chevron rotates on the same curve); files are selectable and
-	 * carry hover actions (set-as-main / rename inline / delete). The compile
-	 * target (`mainId`) shows a "main" badge. Open-state is local per folder
-	 * (default open). Indentation is depth-driven.
+	 * `slide`; files and folders are draggable and folders are drop targets, so
+	 * items move between folders (nested) exactly like VS Code. Both files and
+	 * folders carry a ⋯ menu (rename inline / delete; files also set-as-main).
+	 * The compile target (`mainId`) shows a "main" badge. Open-state is local per
+	 * folder (default open). Indentation is depth-driven.
 	 */
 	let {
 		nodes,
@@ -41,7 +46,13 @@
 		onopen,
 		onrename,
 		ondelete,
-		onsetmain
+		onsetmain,
+		onmovefile,
+		onmovefolder,
+		onrenamefolder,
+		ondeletefolder,
+		onnewfilein,
+		onnewfolderin
 	}: {
 		nodes: TreeNode[];
 		activeId?: string;
@@ -55,6 +66,17 @@
 		ondelete?: (id: string) => void;
 		/** Mark a file as the compile target. Omitted when there's no project. */
 		onsetmain?: (id: string) => void;
+		/** Move a file into `targetDir` ('' = root). */
+		onmovefile?: (id: string, targetDir: string) => void;
+		/** Move a folder into `targetDir` ('' = root). */
+		onmovefolder?: (path: string, targetDir: string) => void;
+		/** Rename a folder — receives the new leaf name. */
+		onrenamefolder?: (path: string, name: string) => void;
+		ondeletefolder?: (path: string) => void;
+		/** Create a new file inside `dir`. */
+		onnewfilein?: (dir: string) => void;
+		/** Create a new subfolder inside `dir`. */
+		onnewfolderin?: (dir: string) => void;
 	} = $props();
 
 	const isTex = (name: string) => /\.tex$/i.test(name);
@@ -64,7 +86,9 @@
 	const indent = (d: number) => `${d * 12 + 8}px`;
 
 	let renamingId = $state<string | null>(null);
+	let renamingPath = $state<string | null>(null);
 	let renameValue = $state('');
+	let dragOverPath = $state<string | null>(null);
 
 	function startRename(node: TreeFile) {
 		renamingId = node.id;
@@ -75,31 +99,133 @@
 		if (name) onrename?.(id, name);
 		renamingId = null;
 	}
+	function startRenameFolder(node: TreeFolder) {
+		renamingPath = node.path;
+		renameValue = node.name;
+	}
+	function commitRenameFolder(path: string) {
+		const name = renameValue.trim();
+		if (name) onrenamefolder?.(path, name);
+		renamingPath = null;
+	}
+
+	// --- Drag & drop ---
+	function dragStartFile(node: TreeFile, e: DragEvent) {
+		setDrag({ kind: 'file', id: node.id, name: node.name });
+		e.dataTransfer?.setData('text/plain', node.name);
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+	function dragStartFolder(node: TreeFolder, e: DragEvent) {
+		setDrag({ kind: 'folder', path: node.path, name: node.name });
+		e.dataTransfer?.setData('text/plain', node.path);
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+	function dragOverFolder(path: string, e: DragEvent) {
+		if (!getDrag()) return;
+		const ok = canDropInto(path);
+		e.preventDefault();
+		e.stopPropagation(); // innermost folder only — no double highlight up the tree
+		if (e.dataTransfer) e.dataTransfer.dropEffect = ok ? 'move' : 'none';
+		dragOverPath = ok ? path : null;
+	}
+	const endDrag = () => setDrag(null);
+	function dropOnFolder(path: string, e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		dragOverPath = null;
+		const it = getDrag();
+		setDrag(null);
+		if (!it || !canDropInto(path)) return;
+		if (it.kind === 'file') onmovefile?.(it.id, path);
+		else onmovefolder?.(it.path, path);
+	}
 </script>
 
 {#each nodes as node (node.type === 'folder' ? `d:${node.path}` : `f:${node.id}`)}
 	{#if node.type === 'folder'}
-		<button
-			class="text-muted-foreground hover:bg-muted hover:text-foreground flex w-full items-center gap-1 rounded py-1 pr-2 text-left transition-colors"
-			style:padding-left={indent(depth)}
-			aria-expanded={isOpen(node.path)}
-			onclick={() => toggle(node.path)}
-		>
-			<IconChevronRight
-				size={13}
-				class="shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] {isOpen(
-					node.path
-				)
-					? 'rotate-90'
-					: ''}"
-			/>
-			{#if isOpen(node.path)}
-				<IconFolderOpen size={15} class="text-muted-foreground shrink-0" />
+		<div class="group/row relative flex items-center">
+			{#if renamingPath === node.path}
+				<div class="flex w-full items-center gap-1 py-1 pr-2" style:padding-left={indent(depth)}>
+					<span class="w-[13px] shrink-0"></span>
+					<IconFolder size={15} class="text-muted-foreground shrink-0" />
+					<!-- svelte-ignore a11y_autofocus -->
+					<input
+						bind:value={renameValue}
+						class="bg-background border-ring text-foreground min-w-0 flex-1 rounded border px-1 py-0 text-[13px] outline-none"
+						autofocus
+						spellcheck="false"
+						onclick={(e) => e.stopPropagation()}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') commitRenameFolder(node.path);
+							if (e.key === 'Escape') renamingPath = null;
+						}}
+						onblur={() => commitRenameFolder(node.path)}
+					/>
+				</div>
 			{:else}
-				<IconFolder size={15} class="text-muted-foreground shrink-0" />
+				<button
+					class="flex w-full items-center gap-1 rounded py-1 pr-7 text-left transition-colors {dragOverPath ===
+					node.path
+						? 'bg-brand-subtle ring-brand/40 ring-1 ring-inset'
+						: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+					style:padding-left={indent(depth)}
+					aria-expanded={isOpen(node.path)}
+					draggable="true"
+					ondragstart={(e) => dragStartFolder(node, e)}
+					ondragend={endDrag}
+					ondragover={(e) => dragOverFolder(node.path, e)}
+					ondragleave={() => (dragOverPath = null)}
+					ondrop={(e) => dropOnFolder(node.path, e)}
+					onclick={() => toggle(node.path)}
+				>
+					<IconChevronRight
+						size={13}
+						class="shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] {isOpen(
+							node.path
+						)
+							? 'rotate-90'
+							: ''}"
+					/>
+					{#if isOpen(node.path)}
+						<IconFolderOpen size={15} class="text-muted-foreground shrink-0" />
+					{:else}
+						<IconFolder size={15} class="text-muted-foreground shrink-0" />
+					{/if}
+					<span class="truncate">{node.name}</span>
+				</button>
+
+				<DropdownMenu>
+					<DropdownMenuTrigger>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								class="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+								title="Folder actions"
+								aria-label="Folder actions"
+								onclick={(e: MouseEvent) => e.stopPropagation()}
+							>
+								<IconDots size={14} />
+							</button>
+						{/snippet}
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" class="w-44">
+						<DropdownMenuItem onSelect={() => onnewfilein?.(node.path)}>
+							<IconFilePlus class="text-muted-foreground" /> New file
+						</DropdownMenuItem>
+						<DropdownMenuItem onSelect={() => onnewfolderin?.(node.path)}>
+							<IconFolderPlus class="text-muted-foreground" /> New folder
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem onSelect={() => startRenameFolder(node)}>
+							<IconPencil class="text-muted-foreground" /> Rename
+						</DropdownMenuItem>
+						<DropdownMenuItem variant="destructive" onSelect={() => ondeletefolder?.(node.path)}>
+							<IconTrash /> Delete
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			{/if}
-			<span class="truncate">{node.name}</span>
-		</button>
+		</div>
 		{#if isOpen(node.path)}
 			<div transition:slide={{ duration: 200, easing: cubicOut }}>
 				<Self
@@ -112,6 +238,12 @@
 					{onrename}
 					{ondelete}
 					{onsetmain}
+					{onmovefile}
+					{onmovefolder}
+					{onrenamefolder}
+					{ondeletefolder}
+					{onnewfilein}
+					{onnewfolderin}
 				/>
 			</div>
 		{/if}
@@ -144,6 +276,9 @@
 					style:padding-left={indent(depth)}
 					aria-current={node.id === activeId}
 					title={node.name}
+					draggable="true"
+					ondragstart={(e) => dragStartFile(node, e)}
+					ondragend={endDrag}
 					onclick={() => onopen?.(node.id)}
 					ondblclick={() => startRename(node)}
 				>

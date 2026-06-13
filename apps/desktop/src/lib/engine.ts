@@ -5,7 +5,7 @@ import type {
 	EngineVersion,
 	PrefetchResult,
 	SystemTexInfo
-} from '@glyph/ui/application';
+} from '@glyphx/ui/application';
 
 type RawCompileResult = { success: boolean; message: string | null };
 

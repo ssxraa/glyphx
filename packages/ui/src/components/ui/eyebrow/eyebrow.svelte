@@ -22,7 +22,7 @@
 <script lang="ts">
 	import type { Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "@glyph/ui/utils";
+	import { cn, type WithElementRef } from "@glyphx/ui/utils";
 
 	type Props = WithElementRef<HTMLAttributes<HTMLSpanElement>> & {
 		// Permissive on purpose — accepts both @lucide/svelte (Svelte 5 functional) and

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Badge } from '@glyph/ui/badge';
-	import { Button } from '@glyph/ui/button';
-	import { Separator } from '@glyph/ui/separator';
-	import { SettingsField } from '@glyph/ui/settings-field';
-	import { toast } from '@glyph/ui/sonner';
+	import { Badge } from '@glyphx/ui/badge';
+	import { Button } from '@glyphx/ui/button';
+	import { Separator } from '@glyphx/ui/separator';
+	import { SettingsField } from '@glyphx/ui/settings-field';
+	import { toast } from '@glyphx/ui/sonner';
 	import { IconCloud } from '@tabler/icons-svelte';
 	import { projectHost } from '$lib/project';
 
@@ -27,10 +27,10 @@
 
 	<SettingsField
 		label="System integration"
-		description="Add an “Open with Glyph” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
+		description="Add an “Open with GlyphX” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
 	>
 		<Button variant="outline" size="sm" class="mt-1 self-start" onclick={addShellIntegration}>
-			Add “Open with Glyph”
+			Add “Open with GlyphX”
 		</Button>
 	</SettingsField>
 
@@ -46,7 +46,7 @@
 		>
 			<IconCloud size={20} class="shrink-0 opacity-70" />
 			<p class="leading-relaxed">
-				Optional end-to-end encrypted sync across your devices. Glyph stays local-first — this will
+				Optional end-to-end encrypted sync across your devices. GlyphX stays local-first — this will
 				always be opt-in.
 			</p>
 		</div>

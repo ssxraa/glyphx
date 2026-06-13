@@ -1,8 +1,8 @@
 [package]
-name = "glyph"
+name = "glyphx"
 version = "0.1.0"
-description = "Glyph — local-first, privacy-first LaTeX editor (desktop shell)"
-authors = ["Glyph"]
+description = "GlyphX — local-first, privacy-first LaTeX editor (desktop shell)"
+authors = ["GlyphX"]
 license = ""
 repository = ""
 edition = "2021"
@@ -11,7 +11,7 @@ rust-version = "1.77.2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "glyph_lib"
+name = "glyphx_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

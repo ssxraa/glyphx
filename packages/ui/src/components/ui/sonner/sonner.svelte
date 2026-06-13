@@ -17,7 +17,7 @@
 </script>
 
 <!--
-  Recast desktop/web Sonner theming.
+  GlyphX desktop/web Sonner theming.
 
   Visual contract: each toast is a 320px-wide card that *visually matches*
   the bottom-right corner notifications (auto-updater, what's-new) so the

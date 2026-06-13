@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Select as SelectPrimitive } from "bits-ui";
-	import { cn } from "@glyph/ui/utils";
+	import { cn } from "@glyphx/ui/utils";
 	import type { ComponentProps } from "svelte";
 
 	let {

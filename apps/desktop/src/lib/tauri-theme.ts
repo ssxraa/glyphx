@@ -1,4 +1,4 @@
-import { settings } from '@glyph/ui/settings';
+import { settings } from '@glyphx/ui/settings';
 
 /**
  * Feed the native OS theme from Tauri into the settings store, overriding the

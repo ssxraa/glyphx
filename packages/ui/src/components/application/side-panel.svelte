@@ -1,22 +1,26 @@
 <script lang="ts">
-	import { Button } from '@glyph/ui/button';
-	import { Segmented } from '@glyph/ui/segmented';
-	import { Separator } from '@glyph/ui/separator';
-	import { SettingsField } from '@glyph/ui/settings-field';
+	import { Button } from '@glyphx/ui/button';
+	import { Segmented } from '@glyphx/ui/segmented';
+	import { Separator } from '@glyphx/ui/separator';
+	import { SettingsField } from '@glyphx/ui/settings-field';
 	import {
 	  EDITOR_FONT_LABELS,
 	  settings,
 	  type Appearance,
 	  type EditorFont,
 	  type LatexGrammar
-	} from '@glyph/ui/settings';
-	import { Switch } from '@glyph/ui/switch';
+	} from '@glyphx/ui/settings';
+	import { Switch } from '@glyphx/ui/switch';
 	import {
 	  IconChevronRight,
 	  IconChevronUp,
 	  IconChevronDown,
+	  IconFilePlus,
+	  IconFold,
 	  IconFolderOpen,
+	  IconFolderPlus,
 	  IconGitBranch,
+	  IconList,
 	  IconMinus,
 	  IconPlus,
 	  IconReplace,
@@ -27,6 +31,8 @@
 	import type { ActivityView } from './activity-bar.svelte';
 	import EngineSettings, { type EngineManager } from './engine-settings.svelte';
 	import FileTree, { type TreeNode } from './file-tree.svelte';
+	import { canDropInto, getDrag, setDrag } from './file-dnd';
+	import { parseOutline, baseLevel } from './outline';
 
 	type FileMeta = { id: string; name: string };
 	type SearchOptions = {
@@ -47,18 +53,28 @@
 	let {
 		view = 'files',
 		files = [],
+		folders = [],
 		activeId = '',
 		mainId = null,
 		projectName = 'Project',
 		hasProject = false,
 		widthPx = 240,
+		source = '',
 		engine,
 		onopen,
 		onnew,
+		onnewfolder,
 		onopenfolder,
 		onrenamefile,
 		ondeletefile,
 		onsetmain,
+		onmovefile,
+		onmovefolder,
+		onrenamefolder,
+		ondeletefolder,
+		onnewfilein,
+		onnewfolderin,
+		ongotoline,
 		onregistershell,
 		searchResults = [],
 		searchActive = 0,
@@ -71,6 +87,8 @@
 	}: {
 		view?: ActivityView;
 		files?: FileMeta[];
+		/** Extra (possibly empty) folder paths to show in the tree, forward-slashed. */
+		folders?: string[];
 		activeId?: string;
 		/** Absolute path / id of the project's main (compile-target) file. */
 		mainId?: string | null;
@@ -78,14 +96,30 @@
 		/** Whether a folder-based project host is available (enables Open Folder). */
 		hasProject?: boolean;
 		widthPx?: number;
+		/** Active file's text — drives the Outline (sectioning) view. */
+		source?: string;
 		engine?: EngineManager;
 		onopen?: (id: string) => void;
 		onnew?: () => void;
+		onnewfolder?: () => void;
 		onopenfolder?: () => void;
 		onrenamefile?: (id: string, name: string) => void;
 		ondeletefile?: (id: string) => void;
 		onsetmain?: (id: string) => void;
-		/** Register the OS "Open with Glyph" folder integration (desktop). */
+		/** Move a file into `targetDir` ('' = root). */
+		onmovefile?: (id: string, targetDir: string) => void;
+		/** Move a folder into `targetDir` ('' = root). */
+		onmovefolder?: (path: string, targetDir: string) => void;
+		/** Rename a folder — receives the new leaf name. */
+		onrenamefolder?: (path: string, name: string) => void;
+		ondeletefolder?: (path: string) => void;
+		/** Create a new file inside `dir`. */
+		onnewfilein?: (dir: string) => void;
+		/** Create a new subfolder inside `dir`. */
+		onnewfolderin?: (dir: string) => void;
+		/** Jump the editor to a 1-based line (Outline click). */
+		ongotoline?: (line: number) => void;
+		/** Register the OS "Open with GlyphX" folder integration (desktop). */
 		onregistershell?: () => void;
 		searchResults?: SearchMatch[];
 		searchActive?: number;
@@ -107,33 +141,99 @@
 					: 'Settings'
 	);
 
-	// Folder-based project tree — file names split on "/" nest into folders, so
-	// the Explorer is folder-ready (flat files today, real folders later).
-	function buildTree(items: FileMeta[]): TreeNode[] {
+	// Folder-based project tree — file names split on "/" nest into folders.
+	// `extraFolders` injects folders that have no files yet (freshly created),
+	// so an empty folder still appears. Folders sort before files, alphabetically.
+	function buildTree(items: FileMeta[], extraFolders: string[] = []): TreeNode[] {
 		const root: TreeNode[] = [];
-		const folders = new Map<string, TreeNode[]>();
-		for (const f of items) {
-			const parts = f.name.split('/');
+		const folderChildren = new Map<string, TreeNode[]>();
+
+		function ensureFolder(path: string): TreeNode[] {
 			let level = root;
-			let path = '';
-			for (let i = 0; i < parts.length - 1; i++) {
-				path = path ? `${path}/${parts[i]}` : parts[i];
-				let children = folders.get(path);
+			let cur = '';
+			for (const part of path.split('/')) {
+				if (!part) continue;
+				cur = cur ? `${cur}/${part}` : part;
+				let children = folderChildren.get(cur);
 				if (!children) {
 					children = [];
-					folders.set(path, children);
-					level.push({ type: 'folder', name: parts[i], path, children });
+					folderChildren.set(cur, children);
+					level.push({ type: 'folder', name: part, path: cur, children });
 				}
 				level = children;
 			}
-			level.push({ type: 'file', id: f.id, name: parts[parts.length - 1] });
+			return level;
 		}
+
+		for (const f of items) {
+			const parts = f.name.split('/');
+			const leaf = parts.pop() ?? f.name;
+			const level = parts.length ? ensureFolder(parts.join('/')) : root;
+			level.push({ type: 'file', id: f.id, name: leaf });
+		}
+		for (const p of extraFolders) if (p) ensureFolder(p);
+
+		function sort(nodes: TreeNode[]) {
+			nodes.sort((a, b) =>
+				a.type !== b.type
+					? a.type === 'folder'
+						? -1
+						: 1
+					: a.name.localeCompare(b.name, undefined, { numeric: true })
+			);
+			for (const n of nodes) if (n.type === 'folder') sort(n.children);
+		}
+		sort(root);
 		return root;
 	}
 	// Root files live at the root (VS Code style); only real subfolders nest.
-	const rootNodes = $derived<TreeNode[]>(buildTree(files));
+	const rootNodes = $derived<TreeNode[]>(buildTree(files, folders));
 	let treeOpen = $state<Record<string, boolean>>({});
 	let rootExpanded = $state(true);
+
+	// --- Outline (sectioning) — pure derive from the active file's text. ---
+	const outline = $derived(parseOutline(source));
+	const outlineBase = $derived(baseLevel(outline));
+	let outlineExpanded = $state(true);
+
+	// --- Collapse / expand all folders. Flat walk over the derived tree; the
+	// button only shows when there's at least one folder to act on. ---
+	function collectFolderPaths(nodes: TreeNode[], acc: string[] = []): string[] {
+		for (const n of nodes)
+			if (n.type === 'folder') {
+				acc.push(n.path);
+				collectFolderPaths(n.children, acc);
+			}
+		return acc;
+	}
+	const folderPaths = $derived(collectFolderPaths(rootNodes));
+	const isPathOpen = (p: string) => treeOpen[p] ?? true;
+	const anyFolderOpen = $derived(folderPaths.some(isPathOpen));
+	function toggleCollapseAll() {
+		const collapse = anyFolderOpen; // any open → collapse all, else expand all
+		const next: Record<string, boolean> = { ...treeOpen };
+		for (const p of folderPaths) next[p] = !collapse;
+		treeOpen = next;
+	}
+
+	// --- Drop onto the project root (move an item out to the top level). ---
+	let rootDragOver = $state(false);
+	function rootDragOverHandler(e: DragEvent) {
+		if (!getDrag()) return;
+		const ok = canDropInto('');
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = ok ? 'move' : 'none';
+		rootDragOver = ok;
+	}
+	function rootDrop(e: DragEvent) {
+		e.preventDefault();
+		rootDragOver = false;
+		const it = getDrag();
+		setDrag(null);
+		if (!it || !canDropInto('')) return;
+		if (it.kind === 'file') onmovefile?.(it.id, '');
+		else onmovefolder?.(it.path, '');
+	}
 
 	const appearanceOpts: { value: Appearance; label: string }[] = [
 		{ value: 'light', label: 'Light' },
@@ -215,7 +315,7 @@
 </script>
 
 <aside
-	class="bg-card border-border flex shrink-0 flex-col border-r min-h-dvh"
+	class="bg-card border-border flex h-full min-h-0 shrink-0 flex-col border-r"
 	style:width={`${widthPx}px`}
 	aria-label={heading}
 >
@@ -231,8 +331,28 @@
 					aria-label="New file"
 					onclick={() => onnew?.()}
 				>
-					<IconPlus size={15} />
+					<IconFilePlus size={15} />
 				</button>
+				{#if onnewfolder}
+					<button
+						class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+						title="New folder"
+						aria-label="New folder"
+						onclick={() => onnewfolder?.()}
+					>
+						<IconFolderPlus size={15} />
+					</button>
+				{/if}
+				{#if folderPaths.length}
+					<button
+						class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+						title={anyFolderOpen ? 'Collapse all folders' : 'Expand all folders'}
+						aria-label={anyFolderOpen ? 'Collapse all folders' : 'Expand all folders'}
+						onclick={toggleCollapseAll}
+					>
+						<IconFold size={15} />
+					</button>
+				{/if}
 				{#if hasProject}
 					<button
 						class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
@@ -247,12 +367,18 @@
 		{/if}
 	</div>
 
-	<div class="min-h-0 flex-1 overflow-auto px-1.5 pb-2 text-[13px]">
+	<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 pb-2 text-[13px]">
 		{#if view === 'files'}
-			<!-- Workspace root header (the project / directory name, VS Code style). -->
+			<!-- Workspace root header (the project / directory name, VS Code style).
+			     Doubles as a drop target to move items out to the top level. -->
 			<button
-				class="text-foreground hover:bg-muted/60 flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-xs font-semibold tracking-wide uppercase transition-colors"
+				class="text-foreground flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-xs font-semibold tracking-wide uppercase transition-colors {rootDragOver
+					? 'bg-brand-subtle ring-brand/40 ring-1 ring-inset'
+					: 'hover:bg-muted/60'}"
 				aria-expanded={rootExpanded}
+				ondragover={rootDragOverHandler}
+				ondragleave={() => (rootDragOver = false)}
+				ondrop={rootDrop}
 				onclick={() => (rootExpanded = !rootExpanded)}
 			>
 				<IconChevronRight
@@ -274,9 +400,67 @@
 						onrename={(id, name) => onrenamefile?.(id, name)}
 						ondelete={(id) => ondeletefile?.(id)}
 						onsetmain={hasProject ? (id) => onsetmain?.(id) : undefined}
+						{onmovefile}
+						{onmovefolder}
+						{onrenamefolder}
+						{ondeletefolder}
+						onnewfilein={(dir) => {
+							treeOpen[dir] = true;
+							onnewfilein?.(dir);
+						}}
+						onnewfolderin={(dir) => {
+							treeOpen[dir] = true;
+							onnewfolderin?.(dir);
+						}}
 					/>
 				</div>
 			{/if}
+
+			<!-- Outline — the active file's sectioning structure (table of contents). -->
+			<div class="mt-2 border-t border-border/60 pt-1.5">
+				<button
+					class="text-muted-foreground hover:text-foreground flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-xs font-semibold tracking-wide uppercase transition-colors"
+					aria-expanded={outlineExpanded}
+					onclick={() => (outlineExpanded = !outlineExpanded)}
+				>
+					<IconChevronRight
+						size={13}
+						class="shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] {outlineExpanded
+							? 'rotate-90'
+							: ''}"
+					/>
+					<IconList size={14} class="shrink-0 opacity-70" />
+					<span class="truncate">Outline</span>
+				</button>
+				{#if outlineExpanded}
+					<div transition:slide={{ duration: 200, easing: cubicOut }}>
+						{#if outline.length}
+							<ul class="flex flex-col pb-1">
+								{#each outline as item, i (i)}
+									<li>
+										<button
+											class="text-muted-foreground hover:bg-muted hover:text-foreground flex w-full items-center gap-1.5 rounded py-0.5 pr-2 text-left transition-colors"
+											style:padding-left={`${(item.level - outlineBase) * 12 + 12}px`}
+											title={item.title}
+											onclick={() => ongotoline?.(item.line)}
+										>
+											<span
+												class="bg-muted-foreground/30 size-1 shrink-0 rounded-full"
+											></span>
+											<span class="truncate text-[13px]">{item.title}</span>
+										</button>
+									</li>
+								{/each}
+							</ul>
+						{:else}
+							<p class="text-muted-foreground/60 px-3 py-1.5 text-[11px]">
+								No sections found. Add <span class="font-mono">\section&#123;…&#125;</span> headings to
+								build an outline.
+							</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
 		{:else if view === 'search'}
 			<div class="flex flex-col gap-1 pt-0.5">
 				<div class="flex items-start gap-0.5">
@@ -519,7 +703,7 @@
 					<SettingsField
 						size="sm"
 						label="System integration"
-						description="Add an “Open with Glyph” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
+						description="Add an “Open with GlyphX” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
 					>
 						<Button
 							variant="outline"
@@ -527,7 +711,7 @@
 							class="self-start"
 							onclick={() => onregistershell?.()}
 						>
-							Add “Open with Glyph”
+							Add “Open with GlyphX”
 						</Button>
 					</SettingsField>
 				{/if}

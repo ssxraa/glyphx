@@ -2,9 +2,7 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
 function isTauri(): boolean {
-	return (
-		typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || 'isTauri' in window)
-	);
+	return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || 'isTauri' in window);
 }
 
 /**

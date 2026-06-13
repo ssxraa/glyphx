@@ -36,15 +36,15 @@
 </script>
 
 <script lang="ts">
-	import { Button } from '@glyph/ui/button';
-	import { Segmented } from '@glyph/ui/segmented';
+	import { Button } from '@glyphx/ui/button';
+	import { Segmented } from '@glyphx/ui/segmented';
 	import {
 		settings,
 		TEX_PROGRAM_LABELS,
 		type EngineKind,
 		type TexProgram
-	} from '@glyph/ui/settings';
-	import { toast } from '@glyph/ui/sonner';
+	} from '@glyphx/ui/settings';
+	import { toast } from '@glyphx/ui/sonner';
 
 	/**
 	 * EngineSettings — pick the compile engine (bundled Tectonic or a local

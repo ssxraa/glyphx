@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/kanakkholwal/glyphx/discussions
+    about: Ask a question, share an idea, or discuss usage. Issues are for tracked bugs and feature work.
+  - name: Security vulnerability
+    url: https://github.com/kanakkholwal/glyphx/security/advisories/new
+    about: Report a security issue privately. Do NOT open a public issue.
+  - name: Releases & downloads
+    url: https://github.com/kanakkholwal/glyphx/releases
+    about: Download the latest GlyphX installers for Windows, macOS, and Linux.

@@ -10,7 +10,7 @@
 		CommandInput,
 		CommandItem,
 		CommandList
-	} from '@glyph/ui/command';
+	} from '@glyphx/ui/command';
 	import { IconChevronDown, IconCornerDownLeft, IconFile, IconStack2 } from '@tabler/icons-svelte';
 
 	/**

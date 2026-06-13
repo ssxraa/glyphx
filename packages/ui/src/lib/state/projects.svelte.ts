@@ -25,6 +25,8 @@ export type Project = {
 const STARTER_TEX = String.raw`% ${''}New document
 \documentclass{article}
 \usepackage{amsmath}
+\usepackage{graphicx} % \includegraphics for figures
+\usepackage{mwe}      % provides the "example-image" placeholder graphic
 
 \title{Untitled}
 \author{}
@@ -122,7 +124,7 @@ function uid(prefix = 'p'): string {
  * Reactive: read `projects.list` in templates/$derived; mutations write through.
  */
 class ProjectsStore {
-	#store = new PersistedState<Project[]>('glyph:projects', SEED);
+	#store = new PersistedState<Project[]>('glyphx:projects', SEED);
 
 	/** Most-recently-edited first. */
 	get list(): Project[] {

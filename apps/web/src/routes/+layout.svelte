@@ -1,7 +1,7 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { settings } from '@glyph/ui/settings';
+	import { settings } from '@glyphx/ui/settings';
 
 	let { children } = $props();
 

@@ -2,18 +2,18 @@
 	// LaTeX-only for now. Typst returns later as an add-on engine.
 	export type EditorEngine = 'latex';
 
-	const SAMPLE_LATEX = String.raw`% Glyph — LaTeX document
+	const SAMPLE_LATEX = String.raw`% GlyphX — LaTeX document
 \documentclass{article}
 \usepackage{amsmath}
 
-\title{Hello from Glyph}
+\title{Hello from GlyphX}
 \author{}
 \date{}
 
 \begin{document}
 \maketitle
 
-Glyph compiles \LaTeX{} entirely on your machine with Tectonic.
+GlyphX compiles \LaTeX{} entirely on your machine with Tectonic.
 Nothing is uploaded. Nothing leaves this device.
 
 \begin{equation}
@@ -25,10 +25,10 @@ Nothing is uploaded. Nothing leaves this device.
 </script>
 
 <script lang="ts">
-	import { Button } from '@glyph/ui/button';
-	import { Badge } from '@glyph/ui/badge';
-	import { ThemeToggle } from '@glyph/ui/theme-toggle';
-	import { settings, type LatexGrammar } from '@glyph/ui/settings';
+	import { Button } from '@glyphx/ui/button';
+	import { Badge } from '@glyphx/ui/badge';
+	import { ThemeToggle } from '@glyphx/ui/theme-toggle';
+	import { settings, type LatexGrammar } from '@glyphx/ui/settings';
 	import CodeEditor from './code-editor.svelte';
 
 	/**
@@ -64,7 +64,7 @@ Nothing is uploaded. Nothing leaves this device.
 			>
 				G
 			</div>
-			<span class="text-muted-foreground/70 text-sm select-none">Glyph</span>
+			<span class="text-muted-foreground/70 text-sm select-none">GlyphX</span>
 		</div>
 
 		<div class="bg-border mx-1 h-5 w-px"></div>
@@ -142,7 +142,7 @@ Nothing is uploaded. Nothing leaves this device.
 					>
 						Rendered output
 					</div>
-					<h1 class="font-display mb-3 text-3xl">Hello from Glyph</h1>
+					<h1 class="font-display mb-3 text-3xl">Hello from GlyphX</h1>
 					<p class="text-muted-foreground leading-relaxed">
 						The Tectonic (LaTeX) engine renders here — fully offline, in-process.
 						Your document never leaves this device.

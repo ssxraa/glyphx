@@ -1,19 +1,19 @@
 <script lang="ts">
-	import { Badge } from '@glyph/ui/badge';
-	import { Logo } from '@glyph/ui/logo';
+	import { Badge } from '@glyphx/ui/badge';
+	import { Logo } from '@glyphx/ui/logo';
 </script>
 
 <div class="flex max-w-xl flex-col gap-8">
 	<div>
 		<h2 class="text-lg font-medium tracking-tight">About</h2>
-		<p class="text-muted-foreground mt-1 text-sm">What Glyph is, and what it promises.</p>
+		<p class="text-muted-foreground mt-1 text-sm">What GlyphX is, and what it promises.</p>
 	</div>
 
 	<section class="flex items-center gap-4">
 		<Logo text={false} badge size={48} />
 		<div class="flex flex-col gap-1">
 			<div class="flex items-center gap-2">
-				<p class="text-foreground text-base font-medium">Glyph</p>
+				<p class="text-foreground text-base font-medium">GlyphX</p>
 				<Badge variant="secondary">v0.1.0</Badge>
 			</div>
 			<p class="text-muted-foreground text-sm">Local-first LaTeX editor</p>
@@ -22,7 +22,7 @@
 
 	<section class="text-muted-foreground flex flex-col gap-3 text-sm leading-relaxed">
 		<p>
-			Glyph compiles real LaTeX on your machine with Tectonic — nothing is uploaded, and it works
+			GlyphX compiles real LaTeX on your machine with Tectonic — nothing is uploaded, and it works
 			fully offline. Your documents stay on disk, in plain files you own.
 		</p>
 		<p>

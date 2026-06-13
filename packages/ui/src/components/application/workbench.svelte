@@ -1,18 +1,18 @@
 <script lang="ts" module>
   export type ViewMode = "editor" | "split" | "preview";
 
-  const SAMPLE_LATEX = String.raw`% Glyph — LaTeX document
+  const SAMPLE_LATEX = String.raw`% GlyphX — LaTeX document
 \documentclass{article}
 \usepackage{amsmath}
 
-\title{Hello from Glyph}
+\title{Hello from GlyphX}
 \author{}
 \date{}
 
 \begin{document}
 \maketitle
 
-Glyph compiles \LaTeX{} entirely on your machine with Tectonic.
+GlyphX compiles \LaTeX{} entirely on your machine with Tectonic.
 Nothing is uploaded. Nothing leaves this device.
 
 \begin{equation}
@@ -24,7 +24,7 @@ Nothing is uploaded. Nothing leaves this device.
 
   const SAMPLE_BIB = String.raw`@article{glyph2026,
   title   = {Local-first Typesetting},
-  author  = {Glyph},
+  author  = {GlyphX},
   journal = {Journal of Private Research},
   year    = {2026}
 }
@@ -32,8 +32,16 @@ Nothing is uploaded. Nothing leaves this device.
 </script>
 
 <script lang="ts">
-  import { Button } from "@glyph/ui/button";
-  import { ButtonGroup } from "@glyph/ui/button-group";
+  import { Button } from "@glyphx/ui/button";
+  import { ButtonGroup } from "@glyphx/ui/button-group";
+  import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+  } from "@glyphx/ui/dialog";
   import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -42,26 +50,28 @@ Nothing is uploaded. Nothing leaves this device.
     DropdownMenuSeparator,
     DropdownMenuShortcut,
     DropdownMenuTrigger,
-  } from "@glyph/ui/dropdown-menu";
+  } from "@glyphx/ui/dropdown-menu";
   import {
     parseLatexLog,
     parseSyncTex,
     summarizeProblems,
     type SyncTexLocation,
     type SyncTexMap,
-  } from "@glyph/ui/editor";
-  import { Logo } from "@glyph/ui/logo";
+  } from "@glyphx/ui/editor";
+  import { Logo } from "@glyphx/ui/logo";
   import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
-  } from "@glyph/ui/select";
-  import { COMPILE_DEBOUNCE_MS, settings } from "@glyph/ui/settings";
-  import { Toaster, toast } from "@glyph/ui/sonner";
-  import { Spinner } from "@glyph/ui/spinner";
+  } from "@glyphx/ui/select";
+  import { COMPILE_DEBOUNCE_MS, settings } from "@glyphx/ui/settings";
+  import { Toaster, toast } from "@glyphx/ui/sonner";
+  import { Spinner } from "@glyphx/ui/spinner";
   import {
     IconAlertTriangle,
+    IconArrowBackUp,
+    IconArrowForwardUp,
     IconChevronDown,
     IconCurrentLocation,
     IconDownload,
@@ -80,6 +90,7 @@ Nothing is uploaded. Nothing leaves this device.
   import ActivityBar, { type ActivityView } from "./activity-bar.svelte";
   import CodeEditor from "./code-editor.svelte";
   import CommandPalette from "./command-palette.svelte";
+  import EditorFindBar from "./editor-find-bar.svelte";
   import type { EngineManager } from "./engine-settings.svelte";
   import ExportMenu from "./export-menu.svelte";
   import FormatToolbar from "./format-toolbar.svelte";
@@ -138,9 +149,10 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     saveFile,
     project,
     openPathOnMount,
-    projectName = "glyph-project",
+    projectName = "glyphx-project",
     initialFiles,
     onpersist,
+    statusNote,
   }: {
     platform?: "web" | "desktop";
     compile?: (source: string) => Promise<{
@@ -187,6 +199,8 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     initialFiles?: GlyphFile[];
     /** Called (debounced) whenever files change, so the host can persist. */
     onpersist?: (files: GlyphFile[]) => void;
+    /** Small free-text note shown in the status bar (e.g. web package server). */
+    statusNote?: string;
   } = $props();
 
   const seedFiles =
@@ -196,6 +210,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   let activeId = $state(seedFiles[0]?.id ?? "main");
   let source = $state(seedFiles[0]?.content ?? "");
   let untitledCount = $state(0);
+  // Freshly created folders that hold no files yet — shown in the Explorer tree
+  // (forward-slash relative paths) until a file lands in them.
+  let extraFolders = $state<string[]>([]);
 
   // --- Folder-based project (desktop) ---------------------------------------
   // When a folder is open, `projectRoot` is its absolute path, files are backed
@@ -264,16 +281,19 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     source = f?.content ?? "";
   }
 
-  async function newFile(): Promise<void> {
+  // Create a new file, optionally inside `dir` (forward-slash relative path).
+  async function newFile(dir = ""): Promise<void> {
     await flushActive();
+    const relFor = (n: number) =>
+      dir ? `${dir}/untitled-${n}.tex` : `untitled-${n}.tex`;
     if (project && projectRoot) {
       untitledCount += 1;
-      let rel = `untitled-${untitledCount}.tex`;
+      let rel = relFor(untitledCount);
       let abs = joinPath(projectRoot, rel);
       // Avoid clobbering an existing file.
       while (await project.exists(abs)) {
         untitledCount += 1;
-        rel = `untitled-${untitledCount}.tex`;
+        rel = relFor(untitledCount);
         abs = joinPath(projectRoot, rel);
       }
       try {
@@ -291,13 +311,412 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       return;
     }
     untitledCount += 1;
+    let rel = relFor(untitledCount);
+    while (relExists(rel)) {
+      untitledCount += 1;
+      rel = relFor(untitledCount);
+    }
     const id = `untitled-${untitledCount}`;
-    files = [
-      ...files,
-      { id, name: `untitled-${untitledCount}.tex`, content: "" },
-    ];
+    files = [...files, { id, name: rel, content: "" }];
     activeId = id;
     source = "";
+  }
+
+  // Existing folder paths (forward-slashed) derived from the file list + the
+  // already-created empty folders, so "New folder" never picks a name in use.
+  function existingFolderPaths(): Set<string> {
+    const set = new Set(extraFolders);
+    for (const f of files) {
+      const parts = f.name.split("/");
+      let cur = "";
+      for (let i = 0; i < parts.length - 1; i++) {
+        cur = cur ? `${cur}/${parts[i]}` : parts[i];
+        set.add(cur);
+      }
+    }
+    return set;
+  }
+
+  // Create a new (empty) folder, optionally inside `dir`.
+  async function newFolder(dir = ""): Promise<void> {
+    const taken = existingFolderPaths();
+    const relFor = (n: number) => {
+      const leaf = n === 1 ? "new-folder" : `new-folder-${n}`;
+      return dir ? `${dir}/${leaf}` : leaf;
+    };
+    let n = 1;
+    let rel = relFor(1);
+    while (taken.has(rel)) rel = relFor(++n);
+
+    if (project && projectRoot) {
+      const abs = joinPath(projectRoot, rel);
+      try {
+        await project.createEntry(abs, true);
+      } catch (e) {
+        toast.error(`Could not create folder — ${e}`);
+        return;
+      }
+    }
+    extraFolders = [...extraFolders, rel];
+  }
+
+  // --- Explorer move / folder ops + conflict handling ----------------------
+  // Forward-slash path helpers for the *relative* names used in the tree.
+  const leafOf = (rel: string) => {
+    const i = rel.lastIndexOf("/");
+    return i === -1 ? rel : rel.slice(i + 1);
+  };
+  const dirOf = (rel: string) => {
+    const i = rel.lastIndexOf("/");
+    return i === -1 ? "" : rel.slice(0, i);
+  };
+  function splitExt(name: string): { base: string; ext: string } {
+    const i = name.lastIndexOf(".");
+    return i > 0 ? { base: name.slice(0, i), ext: name.slice(i) } : { base: name, ext: "" };
+  }
+
+  const relExists = (rel: string, exceptId?: string) =>
+    files.some((f) => f.id !== exceptId && f.name.toLowerCase() === rel.toLowerCase());
+  function folderExists(path: string): boolean {
+    const lower = path.toLowerCase();
+    for (const p of existingFolderPaths()) if (p.toLowerCase() === lower) return true;
+    return false;
+  }
+  function uniqueLeaf(dir: string, leaf: string): string {
+    const { base, ext } = splitExt(leaf);
+    let candidate = leaf;
+    let n = 1;
+    while (relExists(dir ? `${dir}/${candidate}` : candidate)) candidate = `${base} (${++n})${ext}`;
+    return candidate;
+  }
+  function uniqueFolder(dir: string, name: string): string {
+    let candidate = name;
+    let n = 1;
+    while (folderExists(dir ? `${dir}/${candidate}` : candidate)) candidate = `${name} (${++n})`;
+    return candidate;
+  }
+
+  // A promise-based modal: an op `await`s the user's choice; the dialog markup
+  // resolves it. One pending request at a time (moves are sequential).
+  type ConflictAction = "replace" | "rename" | "skip" | "merge";
+  type ConflictChoice = { action: ConflictAction; newName?: string; applyToAll?: boolean };
+  type Pending =
+    | {
+        kind: "conflict";
+        name: string;
+        isFolder: boolean;
+        /** Offer "Merge" (folder-into-folder). */
+        canMerge: boolean;
+        /** Offer the "apply to all" checkbox (batch file conflicts during a merge). */
+        canApplyAll: boolean;
+        resolve: (c: ConflictChoice) => void;
+      }
+    | {
+        kind: "confirm";
+        title: string;
+        message: string;
+        confirmLabel: string;
+        resolve: (ok: boolean) => void;
+      };
+  let pending = $state<Pending | null>(null);
+  let conflictName = $state("");
+  let applyToAll = $state(false);
+
+  function askConflict(
+    name: string,
+    isFolder: boolean,
+    suggestion: string,
+    opts: { canMerge?: boolean; canApplyAll?: boolean } = {},
+  ): Promise<ConflictChoice> {
+    conflictName = suggestion;
+    applyToAll = false;
+    return new Promise((resolve) => {
+      pending = {
+        kind: "conflict",
+        name,
+        isFolder,
+        canMerge: !!opts.canMerge,
+        canApplyAll: !!opts.canApplyAll,
+        resolve,
+      };
+    });
+  }
+  function askConfirm(title: string, message: string, confirmLabel: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      pending = { kind: "confirm", title, message, confirmLabel, resolve };
+    });
+  }
+  function resolveConflict(action: ConflictAction, newName?: string) {
+    const p = pending;
+    const all = applyToAll;
+    pending = null;
+    applyToAll = false;
+    if (p?.kind === "conflict") p.resolve({ action, newName, applyToAll: all });
+  }
+  function resolveConfirm(ok: boolean) {
+    const p = pending;
+    pending = null;
+    if (p?.kind === "confirm") p.resolve(ok);
+  }
+  function cancelPending() {
+    const p = pending;
+    pending = null;
+    applyToAll = false;
+    if (p?.kind === "conflict") p.resolve({ action: "skip" });
+    else if (p?.kind === "confirm") p.resolve(false);
+  }
+
+  /** Apply a fully-resolved new relative path to one file (disk + state). */
+  async function applyRename(f: GlyphFile, newRel: string): Promise<string | null> {
+    if (project && projectRoot && f.path) {
+      const newAbs = joinPath(projectRoot, newRel);
+      try {
+        await project.rename(f.path, newAbs);
+      } catch (e) {
+        toast.error(`Move failed — ${e}`);
+        return null;
+      }
+      const wasActive = f.id === activeId;
+      const wasMain = f.id === mainId;
+      files = files.map((x) =>
+        x.id === f.id ? { ...x, id: newAbs, name: newRel, path: newAbs } : x,
+      );
+      if (wasActive) activeId = newAbs;
+      if (wasMain) {
+        mainId = newAbs;
+        void writeManifest();
+      }
+      return newAbs;
+    }
+    files = files.map((x) => (x.id === f.id ? { ...x, name: newRel } : x));
+    return f.id;
+  }
+
+  /** Delete the file currently occupying `rel` (used by "Replace"). */
+  async function removeRel(rel: string, exceptId?: string): Promise<void> {
+    const victim = files.find(
+      (x) => x.id !== exceptId && x.name.toLowerCase() === rel.toLowerCase(),
+    );
+    if (!victim) return;
+    if (project && victim.path) await project.remove(victim.path);
+    if (victim.id === mainId) {
+      mainId = null;
+      void writeManifest();
+    }
+    if (victim.id === activeId) activeId = "";
+    files = files.filter((x) => x.id !== victim.id);
+  }
+
+  async function moveFile(id: string, targetDir: string): Promise<void> {
+    await flushActive();
+    const f = files.find((x) => x.id === id);
+    if (!f) return;
+    const leaf = leafOf(f.name);
+    let newRel = targetDir ? `${targetDir}/${leaf}` : leaf;
+    if (newRel.toLowerCase() === f.name.toLowerCase()) return; // no-op
+    if (relExists(newRel, id)) {
+      const res = await askConflict(leaf, false, uniqueLeaf(targetDir, leaf));
+      if (res.action === "skip") return;
+      if (res.action === "rename") {
+        const nl = uniqueLeaf(targetDir, (res.newName || leaf).trim() || leaf);
+        newRel = targetDir ? `${targetDir}/${nl}` : nl;
+      } else if (res.action === "replace") {
+        try {
+          await removeRel(newRel, id);
+        } catch (e) {
+          toast.error(`Replace failed — ${e}`);
+          return;
+        }
+      }
+    }
+    const finalId = await applyRename(f, newRel);
+    if (finalId && activeId === "") await openFile(finalId, true);
+  }
+
+  /** Move every file under `srcPath` to `newPath` (disk + state). Shared by
+   * folder move and folder rename. */
+  async function relocateFolder(srcPath: string, newPath: string): Promise<void> {
+    await flushActive();
+    if (project && projectRoot) {
+      try {
+        await project.rename(joinPath(projectRoot, srcPath), joinPath(projectRoot, newPath));
+      } catch (e) {
+        toast.error(`Move failed — ${e}`);
+        return;
+      }
+    }
+    const prefix = `${srcPath}/`;
+    let nextActive = activeId;
+    let nextMain = mainId;
+    let mainMoved = false;
+    files = files.map((f) => {
+      if (f.name !== srcPath && !f.name.startsWith(prefix)) return f;
+      const newName = newPath + f.name.slice(srcPath.length);
+      if (project && projectRoot) {
+        const newAbs = joinPath(projectRoot, newName);
+        if (f.id === activeId) nextActive = newAbs;
+        if (f.id === mainId) {
+          nextMain = newAbs;
+          mainMoved = true;
+        }
+        return { ...f, id: newAbs, name: newName, path: newAbs };
+      }
+      return { ...f, name: newName };
+    });
+    extraFolders = extraFolders.map((p) =>
+      p === srcPath ? newPath : p.startsWith(prefix) ? newPath + p.slice(srcPath.length) : p,
+    );
+    activeId = nextActive;
+    mainId = nextMain;
+    if (mainMoved) void writeManifest();
+  }
+
+  async function moveFolder(srcPath: string, targetDir: string): Promise<void> {
+    const name = leafOf(srcPath);
+    // Guard: never move into self / a descendant.
+    if (targetDir === srcPath || targetDir.startsWith(`${srcPath}/`)) return;
+    let newPath = targetDir ? `${targetDir}/${name}` : name;
+    if (newPath.toLowerCase() === srcPath.toLowerCase()) return; // no-op
+    if (folderExists(newPath)) {
+      const res = await askConflict(name, true, uniqueFolder(targetDir, name), {
+        canMerge: true,
+      });
+      if (res.action === "skip") return;
+      if (res.action === "merge") {
+        await mergeFolder(srcPath, newPath);
+        return;
+      }
+      if (res.action === "rename") {
+        const nn = uniqueFolder(targetDir, (res.newName || name).trim() || name);
+        newPath = targetDir ? `${targetDir}/${nn}` : nn;
+      } else if (res.action === "replace") {
+        try {
+          await removeFolder(newPath);
+        } catch (e) {
+          toast.error(`Replace failed — ${e}`);
+          return;
+        }
+      }
+    }
+    await relocateFolder(srcPath, newPath);
+  }
+
+  /** Merge `srcPath` into an existing `dstPath`: move each file across, resolving
+   * file-level name collisions (with an optional "apply to all"), then drop the
+   * now-empty source folder. */
+  async function mergeFolder(srcPath: string, dstPath: string): Promise<void> {
+    await flushActive();
+    const prefix = `${srcPath}/`;
+    const movers = files.filter((f) => f.name === srcPath || f.name.startsWith(prefix));
+    let batch: ConflictChoice | null = null;
+    let moved = 0;
+
+    for (const f of movers) {
+      // Re-fetch: an earlier "replace" may have removed/renamed this entry.
+      const cur = files.find((x) => x.id === f.id);
+      if (!cur) continue;
+      let newRel = dstPath + cur.name.slice(srcPath.length);
+      if (newRel.toLowerCase() === cur.name.toLowerCase()) continue;
+
+      if (relExists(newRel, cur.id)) {
+        let choice: ConflictChoice | null = batch;
+        if (!choice) {
+          const leaf = leafOf(cur.name);
+          choice = await askConflict(leaf, false, uniqueLeaf(dirOf(newRel), leaf), {
+            canApplyAll: movers.length > 1,
+          });
+          if (choice.applyToAll) batch = choice;
+        }
+        if (choice.action === "skip") continue;
+        if (choice.action === "rename") {
+          const nl = uniqueLeaf(dirOf(newRel), leafOf(newRel));
+          newRel = dirOf(newRel) ? `${dirOf(newRel)}/${nl}` : nl;
+        } else if (choice.action === "replace") {
+          try {
+            await removeRel(newRel, cur.id);
+          } catch (e) {
+            toast.error(`Replace failed — ${e}`);
+            continue;
+          }
+        }
+      }
+      const finalId = await applyRename(cur, newRel);
+      if (finalId) moved += 1;
+      if (finalId && activeId === "") await openFile(finalId, true);
+    }
+
+    // Remap empty subfolders of src into dst; drop the src folder itself.
+    extraFolders = [
+      ...new Set(
+        extraFolders
+          .filter((p) => p !== srcPath)
+          .map((p) => (p.startsWith(prefix) ? dstPath + p.slice(srcPath.length) : p)),
+      ),
+    ];
+    // Clean up the source folder on disk only if nothing was left behind (skips).
+    const leftover = files.some((f) => f.name === srcPath || f.name.startsWith(prefix));
+    if (!leftover && project && projectRoot) {
+      try {
+        await project.remove(joinPath(projectRoot, srcPath));
+      } catch {
+        /* best-effort: empty dir cleanup */
+      }
+    }
+    toast.success(`Merged ${moved} file${moved === 1 ? "" : "s"}`);
+  }
+
+  async function renameFolder(srcPath: string, newLeaf: string): Promise<void> {
+    const leaf = newLeaf.trim();
+    if (!leaf || /[\\/]/.test(leaf) || leaf === leafOf(srcPath)) return;
+    const parent = dirOf(srcPath);
+    const newPath = parent ? `${parent}/${leaf}` : leaf;
+    if (folderExists(newPath)) {
+      toast.error(`A folder named “${leaf}” already exists here.`);
+      return;
+    }
+    await relocateFolder(srcPath, newPath);
+  }
+
+  /** Remove a folder and everything under it (disk + state). */
+  async function removeFolder(path: string): Promise<void> {
+    if (project && projectRoot) {
+      await project.remove(joinPath(projectRoot, path));
+    }
+    const prefix = `${path}/`;
+    const removed = files.filter((f) => f.name === path || f.name.startsWith(prefix));
+    const hadMain = removed.some((f) => f.id === mainId);
+    const hadActive = removed.some((f) => f.id === activeId);
+    files = files.filter((f) => !(f.name === path || f.name.startsWith(prefix)));
+    extraFolders = extraFolders.filter((p) => !(p === path || p.startsWith(prefix)));
+    if (hadMain) {
+      mainId = null;
+      void writeManifest();
+    }
+    if (hadActive) {
+      if (files[0]) await openFile(files[0].id, true);
+      else {
+        activeId = "";
+        source = "";
+      }
+    }
+  }
+
+  async function deleteFolder(path: string): Promise<void> {
+    const prefix = `${path}/`;
+    const count = files.filter((f) => f.name === path || f.name.startsWith(prefix)).length;
+    const tail = count ? ` and its ${count} file${count > 1 ? "s" : ""}` : "";
+    const ok = await askConfirm(
+      "Delete folder",
+      `Delete “${leafOf(path)}”${tail}? This cannot be undone.`,
+      "Delete",
+    );
+    if (!ok) return;
+    try {
+      await removeFolder(path);
+      toast.success("Deleted");
+    } catch (e) {
+      toast.error(`Delete failed — ${e}`);
+    }
   }
 
   // Rename a file from the Explorer. The tree edits the *leaf* name; keep the
@@ -440,6 +859,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       }));
       mainId = await resolveMain(list);
       untitledCount = 0;
+      extraFolders = [];
       const focusId = focusPath
         ? files.find((f) => samePath(f.path, focusPath))?.id
         : undefined;
@@ -501,7 +921,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     }
   }
 
-  /** Register the OS "Open with Glyph" folder integration (desktop, Windows). */
+  /** Register the OS "Open with GlyphX" folder integration (desktop, Windows). */
   async function registerShell(): Promise<void> {
     if (!project?.registerShellIntegration) return;
     try {
@@ -512,7 +932,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   }
 
   // Open a folder / file the app shell routed us to (file-association launch),
-  // and listen for later "Open with Glyph" launches forwarded while we're open.
+  // and listen for later "Open with GlyphX" launches forwarded while we're open.
   onMount(() => {
     if (!project) return;
     let unlisten: (() => void) | undefined;
@@ -551,6 +971,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   type EditorApi = {
     wrapSelection: (before: string, after?: string) => void;
     insertText: (text: string) => void;
+    selectedText: () => string;
     focusEditor: () => void;
     undo: () => void;
     redo: () => void;
@@ -673,6 +1094,28 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   let searchResults = $state<SearchMatch[]>([]);
   let searchActive = $state(0);
 
+  // The docked bottom find/replace bar (Ctrl/Cmd+F over the editor pane).
+  let showFind = $state(false);
+  let findBar = $state<{ focusInput: () => void }>();
+
+  function openFind() {
+    if (viewMode === "preview") viewMode = "split";
+    showFind = true;
+    // Seed from the current selection so "find this word" is one keystroke.
+    const sel = editor?.selectedText?.() ?? "";
+    if (sel && !sel.includes("\n")) {
+      runSearch({ ...searchOpts, query: sel });
+    } else if (searchOpts.query) {
+      runSearch(searchOpts);
+    }
+    queueMicrotask(() => findBar?.focusInput());
+  }
+  function closeFind() {
+    showFind = false;
+    editor?.clearSearch();
+    editor?.focusEditor();
+  }
+
   function runSearch(o: SearchOptions) {
     searchOpts = o;
     searchResults = o.query ? (editor?.findAll(o) ?? []) : [];
@@ -715,9 +1158,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     toast.success(`Replaced ${n} ${n === 1 ? "match" : "matches"}`);
   }
 
-  // Clear the editor highlight when the Search view isn't showing.
+  // Clear the editor highlight when neither the Search view nor the docked
+  // find bar is showing.
   $effect(() => {
-    if (activeView !== "search" || panelCollapsed) editor?.clearSearch();
+    const sidebarSearch = activeView === "search" && !panelCollapsed;
+    if (!sidebarSearch && !showFind) editor?.clearSearch();
   });
 
   // --- Compilation (Tectonic on desktop; placeholder elsewhere) -------------
@@ -824,7 +1269,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
 
   async function runCompile(manual = false) {
     if (!canCompile) {
-      compileError = "Compilation runs in the Glyph desktop app.";
+      compileError = "Compilation runs in the GlyphX desktop app.";
       compileStatus = "error";
       if (manual && viewMode === "editor") viewMode = "split";
       return;
@@ -864,11 +1309,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         // Mirror to the devtools console so logs are readable/debuggable.
         if (out.error) {
           console.error(
-            `[Glyph] LaTeX compilation failed (${lastCompileMs}ms): ${out.error}`,
+            `[GlyphX] LaTeX compilation failed (${lastCompileMs}ms): ${out.error}`,
           );
           if (out.log) console.error(out.log);
         } else {
-          console.info(`[Glyph] compiled in ${lastCompileMs}ms`);
+          console.info(`[GlyphX] compiled in ${lastCompileMs}ms`);
           if (out.log?.trim()) console.debug(out.log);
         }
         if (out.pdf) {
@@ -895,7 +1340,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       compileError = String(e);
       compileStatus = "error";
       showProblems = true;
-      console.error("[Glyph] compile threw:", e);
+      console.error("[GlyphX] compile threw:", e);
     } finally {
       compiling = false;
     }
@@ -1084,8 +1529,8 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         { label: "Keyboard Shortcuts", disabled: true },
         { type: "separator" },
         {
-          label: "About Glyph",
-          run: () => toast.message(`Glyph — local-first LaTeX (${platform})`),
+          label: "About GlyphX",
+          run: () => toast.message(`GlyphX — local-first LaTeX (${platform})`),
         },
       ],
     },
@@ -1113,11 +1558,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       e.preventDefault();
       void openFolder();
     }
-    // Ctrl/Cmd+F opens the Search view in the side panel.
+    // Ctrl/Cmd+F opens the docked find/replace bar over the editor.
+    // (The full project-wide Search view still lives in the activity bar.)
     if (e.key === "f" || e.key === "F") {
       e.preventDefault();
-      activeView = "search";
-      panelCollapsed = false;
+      openFind();
     }
   }
 
@@ -1256,18 +1701,28 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       <SidePanel
         view={activeView}
         {files}
+        folders={extraFolders}
         {activeId}
         {mainId}
+        {source}
         projectName={displayName}
         hasProject={Boolean(project)}
         {engine}
         widthPx={sidebarWidth}
         onopen={openFile}
         onnew={newFile}
+        onnewfolder={newFolder}
         onopenfolder={openFolder}
         onrenamefile={renameFile}
         ondeletefile={deleteFile}
         onsetmain={setMain}
+        onmovefile={moveFile}
+        onmovefolder={moveFolder}
+        onrenamefolder={renameFolder}
+        ondeletefolder={deleteFolder}
+        onnewfilein={(dir) => newFile(dir)}
+        onnewfolderin={(dir) => newFolder(dir)}
+        ongotoline={(n) => editor?.goToLine(n)}
         onregistershell={project?.registerShellIntegration
           ? registerShell
           : undefined}
@@ -1315,9 +1770,42 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
             <div
               class="text-muted-foreground border-border flex h-9 shrink-0 items-center gap-2 border-b px-2 text-xs"
             >
-              <span class="px-1 font-medium">Source</span>
-              <span class="text-muted-foreground/60">{lineCount} lines</span>
-              <div class="ml-auto flex items-center gap-1">
+              <FormatToolbar
+                wrap={(b, a) => editor?.wrapSelection(b, a)}
+                insert={(t) => editor?.insertText(t)}
+              />
+
+              <!-- Right cluster: history, find, sync. -->
+              <div class="ml-auto flex shrink-0 items-center gap-1 pl-1">
+                <div class="bg-border/70 mx-0.5 h-5 w-px"></div>
+                <button
+                  class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+                  title="Undo (⌘/Ctrl+Z)"
+                  aria-label="Undo"
+                  onclick={() => editor?.undo()}
+                >
+                  <IconArrowBackUp size={15} />
+                </button>
+                <button
+                  class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+                  title="Redo (⌘/Ctrl+Shift+Z)"
+                  aria-label="Redo"
+                  onclick={() => editor?.redo()}
+                >
+                  <IconArrowForwardUp size={15} />
+                </button>
+                <div class="bg-border/70 mx-0.5 h-5 w-px"></div>
+                <button
+                  class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors {showFind
+                    ? 'bg-muted text-foreground'
+                    : ''}"
+                  title="Find / replace (⌘/Ctrl+F)"
+                  aria-label="Find in document"
+                  aria-pressed={showFind}
+                  onclick={() => (showFind ? closeFind() : openFind())}
+                >
+                  <IconSearch size={15} />
+                </button>
                 <button
                   class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
                   title="Sync to PDF (⌘/Ctrl+J)"
@@ -1326,10 +1814,6 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                 >
                   <IconCurrentLocation size={15} />
                 </button>
-                <FormatToolbar
-                  wrap={(b, a) => editor?.wrapSelection(b, a)}
-                  insert={(t) => editor?.insertText(t)}
-                />
               </div>
             </div>
             <div class="min-h-0 flex-1">
@@ -1344,6 +1828,20 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                 oncursor={(p) => (cursor = p)}
               />
             </div>
+            {#if showFind}
+              <EditorFindBar
+                bind:this={findBar}
+                initial={searchOpts}
+                resultCount={searchResults.length}
+                activeIndex={searchActive}
+                onsearch={runSearch}
+                onnext={searchNext}
+                onprev={searchPrev}
+                onreplacecurrent={replaceCurrent}
+                onreplaceall={replaceAll}
+                onclose={closeFind}
+              />
+            {/if}
           </section>
         {/if}
 
@@ -1499,7 +1997,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                     </div>
                   {:else}
                     <div
-                      class="glyph-print-area flex h-full flex-col items-center justify-center gap-6 text-center"
+                      class="glyphx-print-area flex h-full flex-col items-center justify-center gap-6 text-center"
                     >
                       <Logo text={false} badge size={64} class="opacity-95" />
                       {#if compileStatus === "compiling"}
@@ -1518,7 +2016,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                             class="text-muted-foreground max-w-[18rem] text-xs leading-relaxed"
                           >
                             {settings.autoCompile
-                              ? "Start typing — Glyph renders live, entirely on your device."
+                              ? "Start typing — GlyphX renders live, entirely on your device."
                               : "Press Compile (⌘/Ctrl+S) to render — entirely on your device."}
                           </p>
                         </div>
@@ -1530,7 +2028,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                           <p
                             class="text-muted-foreground max-w-[18rem] text-xs leading-relaxed"
                           >
-                            Compilation runs in the Glyph desktop app — fully
+                            Compilation runs in the GlyphX desktop app — fully
                             offline.
                           </p>
                         </div>
@@ -1603,13 +2101,73 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
           >Ln {cursor.line}, Col {cursor.column}</span
         >
         <span class="text-muted-foreground/50"
-          >{wordCount} words · {charCount} chars</span
+          >{lineCount} lines · {wordCount} words · {charCount} chars</span
         >
+        {#if statusNote}
+          <span class="text-muted-foreground/50" title="In-browser LaTeX package server">{statusNote}</span>
+        {/if}
         <span class="text-muted-foreground/50 capitalize">{platform}</span>
       </footer>
     </main>
   </div>
 </div>
+
+<!-- Explorer move/delete prompts: name-conflict resolution + destructive confirm. -->
+<Dialog open={pending !== null} onOpenChange={(o) => (o ? null : cancelPending())}>
+  <DialogContent class="sm:max-w-md">
+    {#if pending?.kind === "conflict"}
+      <DialogHeader>
+        <DialogTitle>{pending.isFolder ? "Folder" : "File"} already exists</DialogTitle>
+        <DialogDescription>
+          {pending.isFolder ? "A folder" : "A file"} named “{pending.name}” already exists
+          here.{pending.canMerge
+            ? " Merge their contents, keep both, replace it, or skip."
+            : " Keep both (rename), replace it, or skip the move."}
+        </DialogDescription>
+      </DialogHeader>
+      <div class="flex flex-col gap-1.5">
+        <span class="text-muted-foreground text-xs">New name</span>
+        <input
+          bind:value={conflictName}
+          class="bg-background border-border text-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-9 w-full rounded-md border px-2.5 text-sm outline-none focus-visible:ring-1"
+          spellcheck="false"
+          onkeydown={(e) => {
+            if (e.key === "Enter") resolveConflict("rename", conflictName);
+          }}
+        />
+        {#if pending.canApplyAll}
+          <label class="text-muted-foreground mt-1 flex items-center gap-2 text-xs select-none">
+            <input type="checkbox" bind:checked={applyToAll} class="accent-brand size-3.5" />
+            Apply to all remaining conflicts
+          </label>
+        {/if}
+      </div>
+      <DialogFooter>
+        <Button variant="ghost" size="sm" onclick={() => resolveConflict("skip")}>Skip</Button>
+        {#if pending.canMerge}
+          <Button variant="outline" size="sm" onclick={() => resolveConflict("merge")}>
+            Merge
+          </Button>
+        {/if}
+        <Button variant="destructive" size="sm" onclick={() => resolveConflict("replace")}>
+          Replace
+        </Button>
+        <Button size="sm" onclick={() => resolveConflict("rename", conflictName)}>Keep both</Button>
+      </DialogFooter>
+    {:else if pending?.kind === "confirm"}
+      <DialogHeader>
+        <DialogTitle>{pending.title}</DialogTitle>
+        <DialogDescription>{pending.message}</DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="ghost" size="sm" onclick={() => resolveConfirm(false)}>Cancel</Button>
+        <Button variant="destructive" size="sm" onclick={() => resolveConfirm(true)}>
+          {pending.confirmLabel}
+        </Button>
+      </DialogFooter>
+    {/if}
+  </DialogContent>
+</Dialog>
 
 <!-- Toast feedback (bottom-right; matches the app's corner-notification language). -->
 <Toaster />
@@ -1620,11 +2178,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     :global(body *) {
       visibility: hidden !important;
     }
-    :global(.glyph-print-area),
-    :global(.glyph-print-area *) {
+    :global(.glyphx-print-area),
+    :global(.glyphx-print-area *) {
       visibility: visible !important;
     }
-    :global(.glyph-print-area) {
+    :global(.glyphx-print-area) {
       position: fixed;
       inset: 0;
       max-width: none;

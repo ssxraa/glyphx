@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { WithoutChildrenOrChild } from "@glyph/ui/utils";
-	import { CRAFT_OVERLAY_ANIMATION, cn } from "@glyph/ui/utils";
+	import type { WithoutChildrenOrChild } from "@glyphx/ui/utils";
+	import { CRAFT_OVERLAY_ANIMATION, cn } from "@glyphx/ui/utils";
 	import { Tooltip as TooltipPrimitive } from "bits-ui";
 	import type { ComponentProps } from "svelte";
 	import TooltipPortal from "./tooltip-portal.svelte";

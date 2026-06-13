@@ -1,22 +1,25 @@
 {
-  "name": "glyph",
+  "name": "glyphx",
   "version": "0.0.0",
   "private": true,
-  "description": "Glyph — local-first, privacy-first LaTeX editor. Desktop (Tauri) + web, sharing one UI.",
+  "description": "GlyphX — local-first, privacy-first LaTeX editor. Desktop (Tauri) + web, sharing one UI.",
   "packageManager": "pnpm@10.23.0",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "dev": "turbo run dev",
-    "dev:web": "turbo run dev --filter=@glyph/web",
-    "dev:desktop": "turbo run dev --filter=@glyph/desktop",
+    "dev:web": "turbo run dev --filter=@glyphx/web",
+    "dev:desktop": "turbo run dev --filter=@glyphx/desktop",
     "build": "turbo run build",
-    "build:web": "turbo run build --filter=@glyph/web",
-    "build:desktop": "turbo run build --filter=@glyph/desktop",
+    "build:web": "turbo run build --filter=@glyphx/web",
+    "build:desktop": "turbo run build --filter=@glyphx/desktop",
     "check": "turbo run check",
     "lint": "turbo run lint",
-    "format": "turbo run format"
+    "lint:fix": "turbo run lint:fix",
+    "lint:rust": "turbo run lint:rust",
+    "format": "turbo run format",
+    "format:check": "turbo run format:check"
   },
   "devDependencies": {
     "turbo": "^2"

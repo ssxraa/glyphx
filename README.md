@@ -1,4 +1,4 @@
-# Glyph
+# GlyphX
 
 Local-first, privacy-first **LaTeX & Typst** editor. A native desktop app
 (Tauri) and a free in-browser editor, sharing one UI.
@@ -10,11 +10,11 @@ Local-first, privacy-first **LaTeX & Typst** editor. A native desktop app
 ```
 glyph-mvp/
 ├── apps/
-│   ├── web/        SvelteKit · cloud (adapter-auto) · marketing site + /editor · service worker
+│   ├── web/        SvelteKit · Cloudflare Workers (adapter-cloudflare) · marketing site + /editor · service worker
 │   └── desktop/    SvelteKit static SPA (adapter-static) wrapped by Tauri v2 (Rust)
-│       └── src-tauri/   Rust shell (crate: glyph)
+│       └── src-tauri/   Rust shell (crate: glyphx)
 └── packages/
-    └── ui/         @glyph/ui — shared Svelte component library + design system (app.css)
+    └── ui/         @glyphx/ui — shared Svelte component library + design system (app.css)
 ```
 
 - **Package manager:** pnpm workspaces · **Build orchestration:** Turborepo
@@ -40,19 +40,20 @@ pnpm check              # type-check (svelte-check) across workspaces
 pnpm format             # prettier --write
 
 # Desktop (Tauri) — from apps/desktop:
-pnpm --filter @glyph/desktop desktop:dev     # tauri dev (native window)
-pnpm --filter @glyph/desktop desktop:build   # tauri build (native bundle)
+pnpm --filter @glyphx/desktop desktop:dev     # tauri dev (native window)
+pnpm --filter @glyphx/desktop desktop:build   # tauri build (native bundle)
 ```
 
 ## Architecture notes
 
-- **Web** keeps SSR (adapter-auto) for SEO-friendly marketing pages; the `/editor`
+- **Web** keeps SSR (adapter-cloudflare, deployed to Cloudflare Workers) for
+  SEO-friendly marketing pages; the `/editor`
   route is the in-browser editor. The service worker
   (`apps/web/src/service-worker.ts`) precaches the app shell for offline use.
 - **Desktop** is a pure client-side SPA (`ssr = false`) so it runs inside the
   Tauri WebView; the Rust backend will host the in-process compile engines
   (Typst crate today, Tectonic for LaTeX) — not yet wired.
-- The `EditorShell` (`@glyph/ui/application`) is the calm, shared editor chrome
+- The `EditorShell` (`@glyphx/ui/application`) is the calm, shared editor chrome
   reused by both the desktop window and the web `/editor` route.
 
 ## Status

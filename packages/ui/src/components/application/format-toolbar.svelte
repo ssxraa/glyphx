@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Button } from '@glyph/ui/button';
-	import { ButtonGroup } from '@glyph/ui/button-group';
+	import { Button } from '@glyphx/ui/button';
+	import { ButtonGroup } from '@glyphx/ui/button-group';
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
@@ -8,7 +8,7 @@
 		DropdownMenuSeparator,
 		DropdownMenuShortcut,
 		DropdownMenuTrigger
-	} from '@glyph/ui/dropdown-menu';
+	} from '@glyphx/ui/dropdown-menu';
 	import {
 		IconBold,
 		IconChevronDown,
@@ -91,17 +91,19 @@
 				{
 					label: 'Bulleted list',
 					hint: 'itemize',
-					run: i('\\begin{itemize}\n  \\item \n\\end{itemize}\n')
+					run: i('\\begin{itemize}\n  \\item First item\n  \\item Second item\n\\end{itemize}\n')
 				},
 				{
 					label: 'Numbered list',
 					hint: 'enumerate',
-					run: i('\\begin{enumerate}\n  \\item \n\\end{enumerate}\n')
+					run: i('\\begin{enumerate}\n  \\item First item\n  \\item Second item\n\\end{enumerate}\n')
 				},
 				{
 					label: 'Description list',
 					hint: 'description',
-					run: i('\\begin{description}\n  \\item[Term] Description\n\\end{description}\n')
+					run: i(
+						'\\begin{description}\n  \\item[First term] Description of the first term.\n  \\item[Second term] Description of the second term.\n\\end{description}\n'
+					)
 				}
 			]
 		},
@@ -117,8 +119,16 @@
 			icon: IconMathSymbols,
 			label: 'Math',
 			items: [
-				{ label: 'Equation', hint: 'equation', run: i('\\begin{equation}\n  \n\\end{equation}\n') },
-				{ label: 'Aligned', hint: 'align', run: i('\\begin{align}\n  \n\\end{align}\n') },
+				{
+					label: 'Equation',
+					hint: 'equation',
+					run: i('\\begin{equation}\n  E = mc^2\n\\end{equation}\n')
+				},
+				{
+					label: 'Aligned',
+					hint: 'align',
+					run: i('\\begin{align}\n  a &= b + c \\\\\n    &= d + e\n\\end{align}\n')
+				},
 				'sep',
 				{ label: 'Fraction', hint: '\\frac{}{}', run: w('\\frac{', '}{}') },
 				{ label: 'Square root', hint: '\\sqrt{}', run: w('\\sqrt{', '}') },
@@ -132,7 +142,13 @@
 					hint: 'pmatrix',
 					run: i('\\begin{pmatrix}\n  a & b \\\\\n  c & d\n\\end{pmatrix}\n')
 				},
-				{ label: 'Cases', hint: 'cases', run: i('\\begin{cases}\n  \n\\end{cases}\n') }
+				{
+					label: 'Cases',
+					hint: 'cases',
+					run: i(
+						'\\[\n  f(x) =\n  \\begin{cases}\n    x & \\text{if } x \\geq 0 \\\\\n    -x & \\text{otherwise}\n  \\end{cases}\n\\]\n'
+					)
+				}
 			]
 		},
 		{
@@ -140,28 +156,47 @@
 			icon: IconPlus,
 			label: 'Insert',
 			items: [
-				{ label: 'Link', hint: '\\href{}{}', run: w('\\href{url}{', '}') },
+				{ label: 'Link', hint: '\\href{}{}', run: w('\\href{https://example.com}{', '}') },
 				{ label: 'Footnote', hint: '\\footnote{}', run: w('\\footnote{', '}') },
 				{ label: 'Citation', hint: '\\cite{}', run: w('\\cite{', '}') },
 				{ label: 'Cross-reference', hint: '\\ref{}', run: w('\\ref{', '}') },
 				{ label: 'Label', hint: '\\label{}', run: w('\\label{', '}') },
 				'sep',
 				{
+					label: 'Sample paragraph',
+					hint: 'text',
+					run: i(
+						'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor ' +
+							'incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud ' +
+							'exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\n\n'
+					)
+				},
+				{
 					label: 'Figure',
 					hint: 'figure',
+					// example-image ships with the mwe package — a real placeholder graphic
+					// so the inserted figure renders immediately. Swap for your own file.
 					run: i(
-						'\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=0.8\\linewidth]{}\n  \\caption{}\n  \\label{fig:}\n\\end{figure}\n'
+						'\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=0.6\\linewidth]{example-image}\n  \\caption{Caption text.}\n  \\label{fig:placeholder}\n\\end{figure}\n'
 					)
 				},
 				{
 					label: 'Table',
 					hint: 'tabular',
 					run: i(
-						'\\begin{table}[h]\n  \\centering\n  \\begin{tabular}{c c}\n    a & b \\\\\n    c & d\n  \\end{tabular}\n  \\caption{}\n  \\label{tab:}\n\\end{table}\n'
+						'\\begin{table}[h]\n  \\centering\n  \\begin{tabular}{l l}\n    \\hline\n    Header 1 & Header 2 \\\\\n    \\hline\n    Cell 1 & Cell 2 \\\\\n    Cell 3 & Cell 4 \\\\\n    \\hline\n  \\end{tabular}\n  \\caption{Caption text.}\n  \\label{tab:placeholder}\n\\end{table}\n'
 					)
 				},
-				{ label: 'Code block', hint: 'verbatim', run: i('\\begin{verbatim}\n\n\\end{verbatim}\n') },
-				{ label: 'Block quote', hint: 'quote', run: i('\\begin{quote}\n\n\\end{quote}\n') }
+				{
+					label: 'Code block',
+					hint: 'verbatim',
+					run: i('\\begin{verbatim}\ncode goes here\n\\end{verbatim}\n')
+				},
+				{
+					label: 'Block quote',
+					hint: 'quote',
+					run: i('\\begin{quote}\n  Quoted text goes here.\n\\end{quote}\n')
+				}
 			]
 		}
 	];

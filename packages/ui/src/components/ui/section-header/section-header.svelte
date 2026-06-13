@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from "svelte";
-	import { cn } from "@glyph/ui/utils";
+	import { cn } from "@glyphx/ui/utils";
 
 	type Props = {
 		eyebrow?: string;

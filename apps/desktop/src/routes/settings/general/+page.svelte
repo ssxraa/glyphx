@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Segmented } from '@glyph/ui/segmented';
-	import { SettingsField } from '@glyph/ui/settings-field';
-	import { settings, type Appearance } from '@glyph/ui/settings';
+	import { Segmented } from '@glyphx/ui/segmented';
+	import { SettingsField } from '@glyphx/ui/settings-field';
+	import { settings, type Appearance } from '@glyphx/ui/settings';
 
 	const appearanceOpts: { value: Appearance; label: string }[] = [
 		{ value: 'light', label: 'Light' },

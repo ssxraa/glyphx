@@ -1,20 +1,20 @@
 <script lang="ts" module>
-	import type { Project } from '@glyph/ui/projects';
+	import type { Project } from '@glyphx/ui/projects';
 	export type { Project };
 </script>
 
 <script lang="ts">
-	import { Button } from '@glyph/ui/button';
+	import { Button } from '@glyphx/ui/button';
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
 		DropdownMenuItem,
 		DropdownMenuSeparator,
 		DropdownMenuTrigger
-	} from '@glyph/ui/dropdown-menu';
-	import { Logo } from '@glyph/ui/logo';
-	import { projectViewTransitionName } from '@glyph/ui/projects';
-	import { ThemeToggle } from '@glyph/ui/theme-toggle';
+	} from '@glyphx/ui/dropdown-menu';
+	import { Logo } from '@glyphx/ui/logo';
+	import { projectViewTransitionName } from '@glyphx/ui/projects';
+	import { ThemeToggle } from '@glyphx/ui/theme-toggle';
 	import {
 		IconCopy,
 		IconDotsVertical,

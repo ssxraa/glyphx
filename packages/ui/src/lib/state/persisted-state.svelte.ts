@@ -6,7 +6,7 @@
  *
  * Usage (idiomatic Svelte — the value lives on `.current`, like `runed`):
  *
- *   const flags = new PersistedState("recast-experimental-flags", DEFAULTS);
+ *   const flags = new PersistedState("glyphx-experimental-flags", DEFAULTS);
  *   flags.current;            // reactive read (templates, $derived, $effect)
  *   flags.current = next;     // writes through to storage + broadcasts
  *   flags.reset();            // clear the key, revert to the initial value
@@ -57,7 +57,7 @@ export interface PersistedStateOptions<T> {
 	onError?: (error: unknown, context: PersistedErrorContext, key: string) => void;
 }
 
-const SAME_DOC_EVENT = "recast:persisted-state";
+const SAME_DOC_EVENT = "glyphx:persisted-state";
 
 interface SameDocDetail {
 	key: string;

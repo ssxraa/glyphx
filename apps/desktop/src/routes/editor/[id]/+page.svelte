@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { Workbench } from '@glyph/ui/application';
-	import { projects, projectViewTransitionName } from '@glyph/ui/projects';
+	import { Workbench } from '@glyphx/ui/application';
+	import { projects, projectViewTransitionName } from '@glyphx/ui/projects';
 	import { compileLatex, compileProject } from '$lib/compile';
 	import { engineManager } from '$lib/engine';
 	import { projectHost } from '$lib/project';
@@ -12,12 +13,12 @@
 
 	// Unknown id (e.g. a deleted project) → back to the projects home.
 	$effect(() => {
-		if (!project) goto('/');
+		if (!project) goto(resolve('/'));
 	});
 </script>
 
 <svelte:head>
-	<title>{project ? `${project.name} — Glyph` : 'Glyph'}</title>
+	<title>{project ? `${project.name} — GlyphX` : 'GlyphX'}</title>
 </svelte:head>
 
 {#if project}

@@ -3,7 +3,7 @@
 </script>
 
 <script lang="ts">
-	import { Button } from '@glyph/ui/button';
+	import { Button } from '@glyphx/ui/button';
 	import { IconFiles, IconSearch, IconGitBranch, IconSettings } from '@tabler/icons-svelte';
 
 	/**

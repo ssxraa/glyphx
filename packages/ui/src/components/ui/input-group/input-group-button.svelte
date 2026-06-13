@@ -20,7 +20,7 @@
 </script>
 
 <script lang="ts">
-	import { cn } from "@glyph/ui/utils";
+	import { cn } from "@glyphx/ui/utils";
 	import type { ComponentProps } from "svelte";
 	import { Button } from "../button";
 

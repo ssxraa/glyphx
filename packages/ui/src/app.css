@@ -1,7 +1,7 @@
 /* ============================================================================
-   Glyph — Design System
+   GlyphX — Design System
    Single source of truth for tokens, consumed by every app via
-   `@import '@glyph/ui/app.css'`.
+   `@import '@glyphx/ui/app.css'`.
 
    Identity: "a calm, monochrome instrument for writing LaTeX."
    Palette mirrors a strict monochrome reference (keyfold.io): clean near-white

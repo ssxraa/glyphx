@@ -3,7 +3,7 @@
 //! Tectonic ships heavy native dependencies, so rather than linking the crate
 //! (which needs vcpkg/harfbuzz/freetype/… on Windows) we drive the Tectonic
 //! binary as a subprocess. The binary is resolved, in order, from:
-//!   1. the `GLYPH_TECTONIC_BIN` environment variable,
+//!   1. the `GLYPHX_TECTONIC_BIN` environment variable,
 //!   2. a bundled sidecar next to the app executable, then
 //!   3. `tectonic` on `PATH`.
 //!
@@ -99,13 +99,13 @@ fn read_synctex(dir: &std::path::Path, stem: &str) -> Option<String> {
 const BIN_NAMES: [&str; 2] = ["tectonic.exe", "tectonic"];
 
 /// Locate the Tectonic executable, in priority order:
-///   1. `GLYPH_TECTONIC_BIN`
+///   1. `GLYPHX_TECTONIC_BIN`
 ///   2. an engine downloaded into the app-data dir (managed versions)
 ///   3. next to the app executable (bundled sidecar) or a `binaries/` dir in
 ///      any ancestor (covers `tauri dev`, where the exe is under target/debug)
 ///   4. `tectonic` on `PATH`
 pub fn find_tectonic(app: &tauri::AppHandle) -> PathBuf {
-    if let Ok(custom) = std::env::var("GLYPH_TECTONIC_BIN") {
+    if let Ok(custom) = std::env::var("GLYPHX_TECTONIC_BIN") {
         let pb = PathBuf::from(custom);
         if pb.exists() {
             return pb;
@@ -192,7 +192,7 @@ fn run_tectonic(
             return CompileResult::failure(
                 format!(
                     "Could not run Tectonic ({}). Install it (e.g. `choco install tectonic`) \
-                     or set GLYPH_TECTONIC_BIN. Underlying error: {e}",
+                     or set GLYPHX_TECTONIC_BIN. Underlying error: {e}",
                     bin.display()
                 ),
                 String::new(),
@@ -249,7 +249,7 @@ fn assemble_result(
     if let Ok(bytes) = std::fs::read(&pdf_path) {
         if !status.success() {
             eprintln!(
-                "[glyph] compiled with errors (exit {:?}) — showing best-effort PDF",
+                "[glyphx] compiled with errors (exit {:?}) — showing best-effort PDF",
                 status.code()
             );
         }
@@ -264,7 +264,7 @@ fn assemble_result(
 
     // No PDF at all — a genuine failure. Mirror it to the dev terminal too.
     eprintln!(
-        "[glyph] LaTeX compilation failed (exit {:?}):\n{}",
+        "[glyphx] LaTeX compilation failed (exit {:?}):\n{}",
         status.code(),
         if stderr.trim().is_empty() {
             tex_log.as_str()

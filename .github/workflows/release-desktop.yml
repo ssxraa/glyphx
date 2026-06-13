@@ -1,0 +1,228 @@
+name: Release Desktop App
+
+# Builds + bundles the GlyphX desktop app for Windows / macOS (arm64 + x64) /
+# Linux when a `v*` tag is pushed (or via manual dispatch), and attaches the
+# installers to a GitHub Release. Tectonic ships inside each installer as a
+# Tauri sidecar (downloaded per target triple by scripts/release/download-tectonic.mjs).
+#
+# Procedural detail lives in `scripts/release/`: the Tectonic download, the
+# Linux system deps, and the tag→manifest version sync are each their own file.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.0.0)"
+        required: true
+        type: string
+
+concurrency:
+  group: release-desktop-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24"
+  PNPM_VERSION: "10.23.0"
+  RUST_BACKTRACE: "1"
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  # Tectonic engine version pinned for reproducible release builds. Bump
+  # deliberately; do NOT track "latest". Must match the default in
+  # scripts/release/download-tectonic.mjs.
+  TECTONIC_VERSION: "0.16.9"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      tag_name: ${{ steps.resolve_tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve tag
+        id: resolve_tag
+        shell: bash
+        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Create or reuse draft release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.resolve_tag.outputs.tag }}
+          name: GlyphX ${{ steps.resolve_tag.outputs.tag }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+
+  build-desktop:
+    name: Build (${{ matrix.platform.name }})
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macos-arm64
+            os: macos-latest
+            rust_target: aarch64-apple-darwin
+            tauri_args: --target aarch64-apple-darwin
+          - name: macos-x64
+            os: macos-latest
+            rust_target: x86_64-apple-darwin
+            tauri_args: --target x86_64-apple-darwin
+          - name: linux-x64
+            os: ubuntu-24.04
+            rust_target: x86_64-unknown-linux-gnu
+            tauri_args: ""
+          - name: windows-x64
+            os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            tauri_args: ""
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.rust_target }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/desktop/src-tauri -> target"
+          key: ${{ matrix.platform.rust_target }}
+          shared-key: tauri-${{ matrix.platform.name }}
+          cache-on-failure: true
+
+      - name: Cache turbo build outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ matrix.platform.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ matrix.platform.os }}-
+
+      - name: Install Linux system dependencies
+        if: matrix.platform.os == 'ubuntu-24.04'
+        run: bash scripts/release/install-linux-deps.sh
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Tectonic sidecar
+        id: tectonic-cache
+        # A flaky cache restore must never sink the whole release leg: the
+        # sidecar is re-downloadable from the step below. On a cache error
+        # `cache-hit` stays falsy, so the download runs and the build still
+        # gets its Tectonic binary.
+        continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          path: apps/desktop/src-tauri/binaries
+          key: tectonic-${{ env.TECTONIC_VERSION }}-${{ matrix.platform.rust_target }}
+
+      - name: Download Tectonic sidecar
+        if: steps.tectonic-cache.outputs.cache-hit != 'true'
+        run: >-
+          node scripts/release/download-tectonic.mjs
+          --target ${{ matrix.platform.rust_target }}
+          --version ${{ env.TECTONIC_VERSION }}
+          --dest apps/desktop/src-tauri/binaries
+
+      - name: Sync version from tag
+        env:
+          TAG: ${{ needs.create-release.outputs.tag_name }}
+        run: node scripts/release/sync-version.mjs
+
+      - name: Build Tauri app
+        shell: bash
+        env:
+          # Signs the updater artifacts (.sig files) when an updater pubkey is
+          # configured in tauri.conf.json. Optional: without these the build
+          # still succeeds and just produces unsigned bundles. Add as repo
+          # secrets once you wire up auto-update.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm --filter @glyphx/desktop tauri build ${{ matrix.platform.tauri_args }}
+
+      # Collect the installers from wherever Tauri wrote them. Without `--target`
+      # (Linux/Windows) bundles land in target/release/bundle; with `--target`
+      # (macOS) they land in target/<triple>/release/bundle. Copy the known
+      # installer/updater artifacts into a flat release-assets dir.
+      - name: Collect release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          for base in \
+            "apps/desktop/src-tauri/target/release/bundle" \
+            "apps/desktop/src-tauri/target/${{ matrix.platform.rust_target }}/release/bundle"; do
+            [ -d "$base" ] || continue
+            find "$base" -type f \
+              \( -iname '*.dmg' -o -iname '*.app.tar.gz' -o -iname '*.app.tar.gz.sig' \
+                 -o -iname '*-setup.exe' -o -iname '*.msi' -o -iname '*.nsis.zip' \
+                 -o -iname '*.nsis.zip.sig' -o -iname '*.AppImage' -o -iname '*.AppImage.sig' \
+                 -o -iname '*.deb' -o -iname '*.rpm' \) \
+              -exec cp -f {} release-assets/ \;
+          done
+          echo "----- release-assets -----"
+          ls -la release-assets
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
+          draft: true
+          prerelease: false
+          files: release-assets/*
+          fail_on_unmatched_files: true
+
+      - name: Upload build artifacts (debug aid)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: glyphx-${{ matrix.platform.name }}-${{ needs.create-release.outputs.tag_name }}
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/**/*
+            apps/desktop/src-tauri/target/${{ matrix.platform.rust_target }}/release/bundle/**/*
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish-release:
+    name: Publish release
+    needs: [create-release, build-desktop]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
+          draft: false
+          prerelease: false

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Menubar as MenubarPrimitive } from "bits-ui";
-	import { CRAFT_OVERLAY_ANIMATION, cn } from "@glyph/ui/utils";
+	import { CRAFT_OVERLAY_ANIMATION, cn } from "@glyphx/ui/utils";
 
 	let {
 		ref = $bindable(null),

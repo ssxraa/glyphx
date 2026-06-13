@@ -26,7 +26,7 @@
 </script>
 
 <script lang="ts" generics="T extends string">
-	import { cn } from "@glyph/ui/utils";
+	import { cn } from "@glyphx/ui/utils";
 
 	let {
 		options,

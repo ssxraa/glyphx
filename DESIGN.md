@@ -1,4 +1,4 @@
-# Glyph — Design System
+# GlyphX — Design System
 
 > A calm, near-monochrome instrument for writing LaTeX. The document is the
 > hero; the interface gets out of the way. Restraint is the premium signal.
@@ -8,7 +8,7 @@
 
 ## Identity
 
-Glyph is a local-first, privacy-first **LaTeX** editor (Tectonic on-device).
+GlyphX is a local-first, privacy-first **LaTeX** editor (Tectonic on-device).
 The visual language is **editorial monochrome**: clean near-white in light, a
 blue-near-black night in dark, ink as the primary voice, and a single rationed
 **emerald** accent for live/active signals. Monospace (Geist Mono) carries the
@@ -68,7 +68,7 @@ Self-hosted variable fonts (`@fontsource-variable/*`) — bundled, fully offline
 
 ## Motion
 
-Driven by the `Reveal` component (`@glyph/ui/reveal`) — an IntersectionObserver
+Driven by the `Reveal` component (`@glyphx/ui/reveal`) — an IntersectionObserver
 toggling Tailwind classes through `--ease-craft`. Variants: `up` / `down` /
 `left` / `right` (directional fade), `blur` (focus-pull), `scale`, and `morph`
 (blur + scale + slide — the signature "settle into place"). Stagger lists with

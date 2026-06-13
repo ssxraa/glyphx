@@ -23,7 +23,7 @@
 
 <script lang="ts">
 	import type { HTMLAnchorAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "@glyph/ui/utils";
+	import { cn, type WithElementRef } from "@glyphx/ui/utils";
 
 	let {
 		ref = $bindable(null),

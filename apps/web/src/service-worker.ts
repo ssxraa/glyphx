@@ -5,14 +5,14 @@
 
 // SvelteKit's built-in service worker. SvelteKit bundles this file and exposes
 // `$service-worker` with the precise list of build assets + a content hash.
-// This is what powers Glyph's "open the browser, works offline" promise — no
+// This is what powers GlyphX's "open the browser, works offline" promise — no
 // Workbox, no generated *.sw.js, just the framework primitive.
 
 import { build, files, version } from '$service-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
-const CACHE = `glyph-cache-${version}`;
+const CACHE = `glyphx-cache-${version}`;
 
 // App shell + static assets to precache on install.
 const PRECACHE = [...build, ...files];
@@ -59,8 +59,7 @@ sw.addEventListener('fetch', (event) => {
 			// Everything else: network-first, fall back to cache when offline.
 			try {
 				const response = await fetch(request);
-				const isCacheable =
-					response.status === 200 && response.type === 'basic';
+				const isCacheable = response.status === 200 && response.type === 'basic';
 				if (isCacheable) cache.put(request, response.clone());
 				return response;
 			} catch (err) {

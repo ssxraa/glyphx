@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CRAFT_OVERLAY_BACKDROP_ANIMATION, cn } from "@glyph/ui/utils";
+	import { CRAFT_OVERLAY_BACKDROP_ANIMATION, cn } from "@glyphx/ui/utils";
 	import { Drawer as DrawerPrimitive } from "vaul-svelte";
 
 	let {

@@ -8,11 +8,10 @@
 			// Apply the persisted theme before first paint to avoid a flash.
 			(function () {
 				try {
-					var a = localStorage.getItem('glyph:appearance') || 'system';
+					var a = localStorage.getItem('glyphx:appearance') || 'system';
 					var dark =
 						a === 'dark' ||
-						(a === 'system' &&
-							window.matchMedia('(prefers-color-scheme: dark)').matches);
+						(a === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 					var el = document.documentElement;
 					el.classList.toggle('dark', dark);
 					el.style.colorScheme = dark ? 'dark' : 'light';
@@ -39,7 +38,9 @@
 				stroke-linecap="round"
 				stroke-linejoin="round"
 			>
-				<path d="M13.5 3H7.5A2 2 0 0 0 5.5 5V19A2 2 0 0 0 7.5 21H16.5A2 2 0 0 0 18.5 19V8L13.5 3Z" />
+				<path
+					d="M13.5 3H7.5A2 2 0 0 0 5.5 5V19A2 2 0 0 0 7.5 21H16.5A2 2 0 0 0 18.5 19V8L13.5 3Z"
+				/>
 				<path d="M13.5 3V8H18.5" />
 				<path d="M9 12.75H15" />
 				<path d="M9 16H13" />

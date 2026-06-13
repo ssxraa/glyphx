@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Button } from '@glyph/ui/button';
-	import { Logo } from '@glyph/ui/logo';
+	import { resolve } from '$app/paths';
+	import { Button } from '@glyphx/ui/button';
+	import { Logo } from '@glyphx/ui/logo';
 	import {
 		IconAlertTriangle,
 		IconArrowLeft,
@@ -23,11 +24,11 @@
 	const desc = $derived(
 		isNotFound
 			? "We couldn't find the page you were looking for."
-			: 'Glyph hit an unexpected error — your documents are safe on disk.'
+			: 'GlyphX hit an unexpected error — your documents are safe on disk.'
 	);
 </script>
 
-<svelte:head><title>{status} · Glyph</title></svelte:head>
+<svelte:head><title>{status} · GlyphX</title></svelte:head>
 
 <div class="bg-background text-foreground flex h-dvh w-full items-center justify-center px-6">
 	<div class="flex w-full max-w-sm flex-col items-center gap-4 text-center">
@@ -61,7 +62,7 @@
 				<IconArrowLeft size={14} />
 				Go back
 			</Button>
-			<Button size="sm" class="flex-1" onclick={() => goto('/')}>
+			<Button size="sm" class="flex-1" onclick={() => goto(resolve('/'))}>
 				<IconHome size={14} />
 				Projects
 			</Button>

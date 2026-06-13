@@ -253,7 +253,7 @@
 
 		if (flashEl) flashEl.remove();
 		const el = document.createElement('div');
-		el.className = 'glyph-sync-flash';
+		el.className = 'glyphx-sync-flash';
 		el.style.left = `${leftPx}px`;
 		el.style.top = `${topPx}px`;
 		el.style.width = `${wPx}px`;
@@ -358,7 +358,7 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			bind:this={containerEl}
-			class="glyph-pdf-container absolute inset-0 overflow-auto"
+			class="glyphx-pdf-container absolute inset-0 overflow-auto"
 			tabindex="-1"
 			ondblclick={onDblClick}
 			onwheel={onWheel}
@@ -449,13 +449,13 @@
 
 <style>
 	/* Reserve the scrollbar gutter so it never reflows the fit-width calc. */
-	.glyph-pdf-container {
+	.glyphx-pdf-container {
 		scrollbar-gutter: stable;
 		background: var(--color-muted, transparent);
 	}
 
 	/* Page chrome — we own it (PDFViewer renders borderless via removePageBorders). */
-	:global(.glyph-pdf-container .pdfViewer .page) {
+	:global(.glyphx-pdf-container .pdfViewer .page) {
 		margin: 1.25rem auto;
 		border: 1px solid var(--color-border);
 		border-radius: 3px;
@@ -465,21 +465,21 @@
 	}
 
 	/* Selection tint via our brand token (not a hardcoded colour). */
-	:global(.glyph-pdf-container .textLayer ::selection) {
+	:global(.glyphx-pdf-container .textLayer ::selection) {
 		background: color-mix(in srgb, var(--color-primary) 30%, transparent);
 	}
 
 	/* Forward-sync flash (source → PDF). */
-	:global(.glyph-sync-flash) {
+	:global(.glyphx-sync-flash) {
 		position: absolute;
 		z-index: 5;
 		pointer-events: none;
 		border-radius: 3px;
 		background: color-mix(in srgb, var(--color-primary) 30%, transparent);
 		box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 45%, transparent);
-		animation: glyph-sync-fade 1.5s ease-out forwards;
+		animation: glyphx-sync-fade 1.5s ease-out forwards;
 	}
-	@keyframes -global-glyph-sync-fade {
+	@keyframes -global-glyphx-sync-fade {
 		0% {
 			opacity: 0;
 		}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "@glyph/ui/utils";
+	import { cn, type WithElementRef } from "@glyphx/ui/utils";
 
 	let {
 		ref = $bindable(null),

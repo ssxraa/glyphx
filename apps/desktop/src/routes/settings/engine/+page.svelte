@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { EngineSettings } from '@glyph/ui/application';
-	import { SettingsField } from '@glyph/ui/settings-field';
+	import { EngineSettings } from '@glyphx/ui/application';
+	import { SettingsField } from '@glyphx/ui/settings-field';
 	import { engineManager } from '$lib/engine';
 </script>
 
@@ -8,8 +8,8 @@
 	<div>
 		<h2 class="text-lg font-medium tracking-tight">Engine</h2>
 		<p class="text-muted-foreground mt-1 text-sm">
-			Choose how Glyph compiles. Bundled Tectonic needs no install; System TeX uses your local
-			TeX Live / MiKTeX for documents Tectonic can't render.
+			Choose how GlyphX compiles. Bundled Tectonic needs no install; System TeX uses your local TeX
+			Live / MiKTeX for documents Tectonic can't render.
 		</p>
 	</div>
 

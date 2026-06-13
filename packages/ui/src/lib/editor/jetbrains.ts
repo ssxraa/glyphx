@@ -108,7 +108,7 @@ const light = {
 	caret: "#000000",
 	selection: "#a6d2ff",
 	selectionMatch: "#cce8ff",
-	// Neutral (cool) active-line tint to match Glyph's near-white surface — not
+	// Neutral (cool) active-line tint to match GlyphX's near-white surface — not
 	// the warm cream of stock IntelliJ — with the current line number in accent.
 	gutterBg: "#ffffff",
 	gutterFg: "#9b9ba3",

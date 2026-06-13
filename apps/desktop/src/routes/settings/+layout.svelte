@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { Button } from '@glyph/ui/button';
-	import { Logo } from '@glyph/ui/logo';
-	import { Toaster } from '@glyph/ui/sonner';
+	import { Button } from '@glyphx/ui/button';
+	import { Logo } from '@glyphx/ui/logo';
+	import { Toaster } from '@glyphx/ui/sonner';
 	import {
 		IconArrowLeft,
 		IconBolt,
@@ -22,11 +23,11 @@
 		{ href: '/settings/engine', label: 'Engine', icon: IconBolt },
 		{ href: '/settings/integrations', label: 'Integrations', icon: IconPlug },
 		{ href: '/settings/about', label: 'About', icon: IconInfoCircle }
-	];
+	] as const;
 	const isActive = (href: string) => page.url.pathname === href;
 </script>
 
-<svelte:head><title>Settings · Glyph</title></svelte:head>
+<svelte:head><title>Settings · GlyphX</title></svelte:head>
 
 <div class="bg-background text-foreground flex h-dvh flex-col overflow-hidden">
 	<header class="border-border flex h-14 shrink-0 items-center gap-3 border-b px-5">
@@ -35,7 +36,7 @@
 			size="icon-sm"
 			title="Back to projects"
 			aria-label="Back to projects"
-			onclick={() => goto('/')}
+			onclick={() => goto(resolve('/'))}
 		>
 			<IconArrowLeft size={16} />
 		</Button>
@@ -52,7 +53,7 @@
 						{@const Icon = item.icon}
 						<li>
 							<a
-								href={item.href}
+								href={resolve(item.href)}
 								aria-current={isActive(item.href) ? 'page' : undefined}
 								class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors {isActive(
 									item.href

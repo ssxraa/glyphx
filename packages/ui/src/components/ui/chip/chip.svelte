@@ -5,7 +5,7 @@
 	 *   - removable: a static pill with an inline remove button — assigned tags.
 	 * Optional `color` renders a leading dot (hex). Dependency-free (no icon lib).
 	 */
-	import { cn } from "@glyph/ui/utils";
+	import { cn } from "@glyphx/ui/utils";
 
 	let {
 		label,

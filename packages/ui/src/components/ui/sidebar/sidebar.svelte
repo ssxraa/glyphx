@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "@glyph/ui/utils";
+	import { cn, type WithElementRef } from "@glyphx/ui/utils";
 	import type { HTMLAttributes } from "svelte/elements";
 	import * as Sheet from "../sheet";
 	import { SIDEBAR_WIDTH_MOBILE } from "./constants";

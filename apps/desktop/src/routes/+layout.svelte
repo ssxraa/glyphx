@@ -1,11 +1,12 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { settings } from '@glyph/ui/settings';
-	import { NavProgress } from '@glyph/ui/nav-progress';
+	import { settings } from '@glyphx/ui/settings';
+	import { NavProgress } from '@glyphx/ui/nav-progress';
 	import { initTauriTheme } from '$lib/tauri-theme';
 	import { onMount, tick } from 'svelte';
 	import { goto, onNavigate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { launch } from '$lib/launch';
 	import { projectHost } from '$lib/project';
 
@@ -31,9 +32,9 @@
 		// back on the projects home).
 		const toHome = navigation.to?.url.pathname === '/';
 		document.documentElement.dataset.vt = toHome ? 'to-home' : 'to-editor';
-		return new Promise((resolve) => {
+		return new Promise((settle) => {
 			const transition = document.startViewTransition(async () => {
-				resolve();
+				settle();
 				await navigation.complete;
 			});
 			transition.finished.finally(() => {
@@ -42,8 +43,8 @@
 		});
 	});
 
-	// File association: open the folder / file Glyph was launched with (and react
-	// to later "Open with Glyph" launches forwarded by the single-instance
+	// File association: open the folder / file GlyphX was launched with (and react
+	// to later "Open with GlyphX" launches forwarded by the single-instance
 	// plugin) by routing into the folder-mode editor.
 	onMount(() => {
 		let unlisten: (() => void) | undefined;
@@ -52,7 +53,7 @@
 				const p = await projectHost.takeLaunchPath?.();
 				if (p) {
 					launch.path = p;
-					await goto('/editor/folder');
+					await goto(resolve('/editor/folder'));
 				}
 			} catch {
 				/* no launch path */
@@ -60,7 +61,7 @@
 			try {
 				unlisten = await projectHost.onOpenPath?.((path) => {
 					launch.path = path;
-					void goto('/editor/folder');
+					void goto(resolve('/editor/folder'));
 				});
 			} catch {
 				/* event bridge unavailable */

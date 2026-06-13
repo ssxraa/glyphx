@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from "@glyph/ui/utils";
+	import { cn } from "@glyphx/ui/utils";
 	import { Select as SelectPrimitive } from "bits-ui";
 
 	let {

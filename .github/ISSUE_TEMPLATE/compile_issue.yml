@@ -1,0 +1,95 @@
+name: Compile / PDF issue
+description: A document fails to compile, compiles wrong, or the PDF/SyncTeX output is broken.
+title: "[compile]: "
+labels: ["bug", "desktop:compile", "engine", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for the **compile pipeline** — Tectonic / System TeX (latexmk), missing packages or fonts, and the produced PDF / SyncTeX. For editor-only UI glitches use **UX / UI issue**.
+
+        A **minimal `.tex` that reproduces the problem** is by far the most useful thing you can attach.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What went wrong
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: When does the problem occur?
+      options:
+        - Compile fails to start (engine not found / can't launch)
+        - Compile errors out (no PDF produced)
+        - PDF is produced but content is wrong / missing
+        - First-run TeX bundle download fails or hangs (Tectonic)
+        - SyncTeX (forward / reverse search) doesn't work
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Compile engine
+      description: Settings → Engine.
+      multiple: true
+      options:
+        - Bundled Tectonic (stable)
+        - Bundled Tectonic (nightly)
+        - System TeX — pdflatex (latexmk)
+        - System TeX — xelatex (latexmk)
+        - System TeX — lualatex (latexmk)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Minimal reproducing document
+      description: Paste the smallest `.tex` that reproduces it (and a `.bib`/asset if relevant), or attach the project.
+      render: latex
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Compile log
+      description: Paste the engine log from the Problems panel / log view. Wrap in a ```` ```log ```` block.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: GlyphX version
+      placeholder: "v0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: tex-distro
+    attributes:
+      label: System TeX distribution (if applicable)
+      description: e.g. TeX Live 2024, MiKTeX 24.x. Leave blank for bundled Tectonic.
+      placeholder: "TeX Live 2024"
+  - type: checkboxes
+    id: prereqs
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: My document compiles in another LaTeX tool (Overleaf / local TeX), or I noted that it doesn't.
+          required: false

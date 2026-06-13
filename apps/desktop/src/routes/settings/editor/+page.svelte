@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { Button } from '@glyph/ui/button';
-	import { Segmented } from '@glyph/ui/segmented';
-	import { Separator } from '@glyph/ui/separator';
+	import { Button } from '@glyphx/ui/button';
+	import { Segmented } from '@glyphx/ui/segmented';
+	import { Separator } from '@glyphx/ui/separator';
 	import {
 		EDITOR_FONT_LABELS,
 		settings,
 		type EditorFont,
 		type LatexGrammar
-	} from '@glyph/ui/settings';
-	import { SettingsField } from '@glyph/ui/settings-field';
-	import { Switch } from '@glyph/ui/switch';
+	} from '@glyphx/ui/settings';
+	import { SettingsField } from '@glyphx/ui/settings-field';
+	import { Switch } from '@glyphx/ui/switch';
 	import { IconMinus, IconPlus } from '@tabler/icons-svelte';
 
 	const grammarOpts: { value: LatexGrammar; label: string }[] = [
@@ -59,7 +59,9 @@
 			>
 				<IconMinus size={15} />
 			</Button>
-			<span class="text-foreground w-10 text-center text-sm tabular-nums">{settings.fontSize}px</span>
+			<span class="text-foreground w-10 text-center text-sm tabular-nums"
+				>{settings.fontSize}px</span
+			>
 			<Button
 				variant="outline"
 				size="icon-xs"

@@ -36,7 +36,7 @@
 	} from "@codemirror/autocomplete";
 	import { search, setSearchQuery, SearchQuery } from "@codemirror/search";
 
-	import { jetbrainsTheme, latexLanguage, type LatexGrammar } from "@glyph/ui/editor";
+	import { jetbrainsTheme, latexLanguage, type LatexGrammar } from "@glyphx/ui/editor";
 
 	/**
 	 * CodeEditor — the shared CodeMirror 6 surface (web + desktop).
@@ -238,6 +238,14 @@
 
 	export function focusEditor() {
 		view?.focus();
+	}
+
+	/** The currently selected text (empty string if the selection is collapsed). */
+	export function selectedText(): string {
+		const v = view;
+		if (!v) return "";
+		const r = v.state.selection.main;
+		return v.state.sliceDoc(r.from, r.to);
 	}
 
 	/** Undo / redo the last edit (wired to the Edit menu + native shortcuts). */

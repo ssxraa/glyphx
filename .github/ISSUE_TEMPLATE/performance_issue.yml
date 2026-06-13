@@ -1,0 +1,71 @@
+name: Performance issue
+description: App is slow, sluggish, uses excessive CPU/RAM, or has high latency.
+title: "[perf]: "
+labels: ["desktop:perf", "performance", "needs-triage"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What's slow
+      description: Be precise — "compiling a 40-page document takes 30s on every keystroke" beats "the app is slow".
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where do you see the slowdown?
+      multiple: true
+      options:
+        - App startup
+        - Typing / editor responsiveness
+        - LaTeX compilation (Tectonic / System TeX)
+        - First-compile bundle download (Tectonic)
+        - PDF rendering / preview
+        - SyncTeX (forward / reverse search)
+        - Opening / switching projects
+        - General UI responsiveness
+    validations:
+      required: true
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements
+      description: |
+        If possible, include numbers: compile wall-clock time, document page count, CPU/RAM usage, and how big the project is.
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: GlyphX version
+      placeholder: "v0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: CPU, RAM, and storage type (SSD/HDD/NVMe).
+    validations:
+      required: true
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Profiling data (optional)
+      description: Chrome DevTools traces, OS profilers, or a screen recording showing the issue.

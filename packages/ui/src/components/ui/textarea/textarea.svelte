@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn, type WithElementRef, type WithoutChildren } from "@glyph/ui/utils";
+	import { cn, type WithElementRef, type WithoutChildren } from "@glyphx/ui/utils";
 	import type { HTMLTextareaAttributes } from "svelte/elements";
 
 	let {

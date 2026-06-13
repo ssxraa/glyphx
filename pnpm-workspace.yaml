@@ -8,3 +8,6 @@ onlyBuiltDependencies:
   - esbuild
   - '@tauri-apps/cli'
   - '@tailwindcss/oxide'
+  # wrangler's runtime (Workers deploy) + adapter-cloudflare image handling.
+  - workerd
+  - sharp

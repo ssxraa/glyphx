@@ -7,3 +7,11 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Build output / generated (prettier doesn't read .gitignore)
+.svelte-kit/
+build/
+dist/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/

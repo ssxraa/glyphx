@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import type { ProjectFile, ProjectHost } from '@glyph/ui/application';
+import type { ProjectFile, ProjectHost } from '@glyphx/ui/application';
 
 /**
  * Desktop project host — folder-based LaTeX projects backed by Tauri's native
@@ -18,7 +18,7 @@ export const projectHost: ProjectHost = {
 		const sel = await open({
 			multiple: false,
 			filters: [
-				{ name: 'Glyph project / archive', extensions: ['zip', 'glyx', 'tex'] },
+				{ name: 'GlyphX project / archive', extensions: ['zip', 'glyx', 'tex'] },
 				{ name: 'All files', extensions: ['*'] }
 			]
 		});
@@ -54,6 +54,6 @@ export const projectHost: ProjectHost = {
 	},
 
 	takeLaunchPath: () => invoke<string | null>('take_launch_path'),
-	onOpenPath: (cb) => listen<string>('glyph://open-path', (e) => cb(e.payload)),
+	onOpenPath: (cb) => listen<string>('glyphx://open-path', (e) => cb(e.payload)),
 	registerShellIntegration: () => invoke<string>('register_shell_integration')
 };

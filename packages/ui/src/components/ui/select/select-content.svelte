@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { WithoutChildrenOrChild } from "@glyph/ui/utils";
-	import { CRAFT_OVERLAY_ANIMATION, cn, type WithoutChild } from "@glyph/ui/utils";
+	import type { WithoutChildrenOrChild } from "@glyphx/ui/utils";
+	import { CRAFT_OVERLAY_ANIMATION, cn, type WithoutChild } from "@glyphx/ui/utils";
 	import { Select as SelectPrimitive } from "bits-ui";
 	import type { ComponentProps } from "svelte";
 	import SelectPortal from "./select-portal.svelte";
