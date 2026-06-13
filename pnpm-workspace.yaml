@@ -1,0 +1,10 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10 blocks lifecycle build scripts unless explicitly allowed.
+# Add packages here as the toolchain needs them (native postinstall steps).
+onlyBuiltDependencies:
+  - esbuild
+  - '@tauri-apps/cli'
+  - '@tailwindcss/oxide'

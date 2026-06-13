@@ -1,0 +1,175 @@
+/**
+ * Glyph settings — appearance (theme) + editor preferences.
+ *
+ * Built on {@link PersistedState}, so every setting is persisted to
+ * localStorage and synced live across every Tauri window / browser tab that
+ * shares the origin. Change the theme in one window and the others follow
+ * within a tick — no `mode-watcher`, no flash.
+ *
+ * System-theme detection:
+ *   - web: `matchMedia('(prefers-color-scheme: dark)')`
+ *   - desktop: the Tauri app calls `settings.setSystemTheme()` from the
+ *     native theme API (see apps/desktop). That overrides the media query.
+ */
+import { PersistedState } from "./persisted-state.svelte";
+
+export type Appearance = "light" | "dark" | "system";
+export type ResolvedTheme = "light" | "dark";
+export type LatexGrammar = "legacy" | "lezer";
+export type EditorFont = "jetbrains" | "geist";
+
+/** Editor monospace font stacks (all self-hosted via @fontsource, offline-safe). */
+export const EDITOR_FONT_STACKS: Record<EditorFont, string> = {
+	jetbrains: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+	geist: "'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace",
+};
+export const EDITOR_FONT_LABELS: Record<EditorFont, string> = {
+	jetbrains: "JetBrains Mono",
+	geist: "Geist Mono",
+};
+
+export interface EditorSettings {
+	/** Which LaTeX parser drives highlighting. `legacy` = stex, `lezer` = grammar. */
+	grammar: LatexGrammar;
+	font: EditorFont;
+	fontSize: number;
+	lineWrapping: boolean;
+	/** Recompile automatically as you type (debounced). */
+	autoCompile: boolean;
+}
+
+export const EDITOR_DEFAULTS: EditorSettings = {
+	grammar: "legacy",
+	font: "jetbrains",
+	fontSize: 13,
+	lineWrapping: false,
+	autoCompile: true,
+};
+
+/** Debounce (ms) before an edit triggers an automatic recompile. */
+export const COMPILE_DEBOUNCE_MS = 650;
+
+export const APPEARANCE_KEY = "glyph:appearance";
+export const EDITOR_KEY = "glyph:editor";
+
+const isBrowser = typeof window !== "undefined";
+
+class SettingsStore {
+	#appearance = new PersistedState<Appearance>(APPEARANCE_KEY, "system");
+	#editor = new PersistedState<EditorSettings>(EDITOR_KEY, EDITOR_DEFAULTS);
+
+	/** OS preference. Light on the server; corrected on the client. */
+	#system = $state<ResolvedTheme>("light");
+	#mediaBound = false;
+
+	constructor() {
+		if (isBrowser) this.#bindMedia();
+	}
+
+	#bindMedia() {
+		if (this.#mediaBound) return;
+		this.#mediaBound = true;
+		const mq = window.matchMedia("(prefers-color-scheme: dark)");
+		this.#system = mq.matches ? "dark" : "light";
+		mq.addEventListener("change", (e) => {
+			this.#system = e.matches ? "dark" : "light";
+		});
+	}
+
+	// --- appearance -----------------------------------------------------------
+	get appearance(): Appearance {
+		return this.#appearance.current;
+	}
+	set appearance(value: Appearance) {
+		this.#appearance.current = value;
+	}
+
+	/** The detected OS theme. */
+	get system(): ResolvedTheme {
+		return this.#system;
+	}
+
+	/** What the UI should actually render (`system` collapsed to light/dark). */
+	get resolved(): ResolvedTheme {
+		const a = this.#appearance.current;
+		return a === "system" ? this.#system : a;
+	}
+
+	/** Desktop feeds the native OS theme here (Tauri), overriding matchMedia. */
+	setSystemTheme(theme: ResolvedTheme) {
+		this.#system = theme;
+	}
+
+	/** Flip between light and dark relative to what's currently shown. */
+	toggle() {
+		this.appearance = this.resolved === "dark" ? "light" : "dark";
+	}
+
+	/** Step light → dark → system → light. */
+	cycle() {
+		const order: Appearance[] = ["light", "dark", "system"];
+		const i = order.indexOf(this.#appearance.current);
+		this.appearance = order[(i + 1) % order.length];
+	}
+
+	/**
+	 * Toggle `.dark` on <html>. Call from a component `$effect` so it tracks
+	 * `resolved` and re-applies on toggle *and* on cross-window storage sync.
+	 */
+	apply() {
+		if (!isBrowser) return;
+		const dark = this.resolved === "dark";
+		const root = document.documentElement;
+		root.classList.toggle("dark", dark);
+		root.style.colorScheme = dark ? "dark" : "light";
+	}
+
+	// --- editor preferences ---------------------------------------------------
+	get editor(): EditorSettings {
+		return this.#editor.current;
+	}
+	patchEditor(patch: Partial<EditorSettings>) {
+		this.#editor.current = { ...this.#editor.current, ...patch };
+	}
+
+	get grammar(): LatexGrammar {
+		return this.#editor.current.grammar;
+	}
+	set grammar(value: LatexGrammar) {
+		this.patchEditor({ grammar: value });
+	}
+
+	get font(): EditorFont {
+		return this.#editor.current.font;
+	}
+	set font(value: EditorFont) {
+		this.patchEditor({ font: value });
+	}
+	get fontStack(): string {
+		return EDITOR_FONT_STACKS[this.#editor.current.font];
+	}
+
+	get fontSize(): number {
+		return this.#editor.current.fontSize;
+	}
+	set fontSize(value: number) {
+		this.patchEditor({ fontSize: value });
+	}
+
+	get lineWrapping(): boolean {
+		return this.#editor.current.lineWrapping;
+	}
+	set lineWrapping(value: boolean) {
+		this.patchEditor({ lineWrapping: value });
+	}
+
+	get autoCompile(): boolean {
+		return this.#editor.current.autoCompile;
+	}
+	set autoCompile(value: boolean) {
+		this.patchEditor({ autoCompile: value });
+	}
+}
+
+/** App-wide singleton. */
+export const settings = new SettingsStore();
