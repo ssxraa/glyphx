@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Segmented } from '@glyph/ui/segmented';
+	import { SettingsField } from '@glyph/ui/settings-field';
 	import { settings, type Appearance } from '@glyph/ui/settings';
 
 	const appearanceOpts: { value: Appearance; label: string }[] = [
@@ -15,8 +16,7 @@
 		<p class="text-muted-foreground mt-1 text-sm">Appearance and app-wide preferences.</p>
 	</div>
 
-	<section class="flex flex-col gap-2">
-		<span class="text-foreground text-sm font-medium">Appearance</span>
+	<SettingsField label="Appearance" description="Follow the system theme, or pick light / dark.">
 		<Segmented
 			options={appearanceOpts}
 			value={settings.appearance}
@@ -24,6 +24,5 @@
 			size="sm"
 			aria-label="Appearance"
 		/>
-		<p class="text-muted-foreground text-xs">Follow the system theme, or pick light / dark.</p>
-	</section>
+	</SettingsField>
 </div>

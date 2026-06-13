@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { Button } from '@glyph/ui/button';
 	import { Segmented } from '@glyph/ui/segmented';
+	import { Separator } from '@glyph/ui/separator';
 	import {
 		EDITOR_FONT_LABELS,
 		settings,
 		type EditorFont,
 		type LatexGrammar
 	} from '@glyph/ui/settings';
+	import { SettingsField } from '@glyph/ui/settings-field';
 	import { Switch } from '@glyph/ui/switch';
 	import { IconMinus, IconPlus } from '@tabler/icons-svelte';
 
@@ -26,8 +28,7 @@
 		<p class="text-muted-foreground mt-1 text-sm">Highlighting, typeface, and compile behaviour.</p>
 	</div>
 
-	<section class="flex flex-col gap-2">
-		<span class="text-foreground text-sm font-medium">LaTeX grammar</span>
+	<SettingsField label="LaTeX grammar">
 		<Segmented
 			options={grammarOpts}
 			value={settings.grammar}
@@ -35,10 +36,9 @@
 			size="sm"
 			aria-label="LaTeX grammar"
 		/>
-	</section>
+	</SettingsField>
 
-	<section class="flex flex-col gap-2">
-		<span class="text-foreground text-sm font-medium">Editor font</span>
+	<SettingsField label="Editor font">
 		<Segmented
 			options={fontOpts}
 			value={settings.font}
@@ -46,14 +46,13 @@
 			size="sm"
 			aria-label="Editor font"
 		/>
-	</section>
+	</SettingsField>
 
-	<section class="flex items-center justify-between gap-3">
-		<span class="text-foreground text-sm font-medium">Editor font size</span>
+	<SettingsField label="Editor font size" layout="row">
 		<div class="flex items-center gap-1.5">
 			<Button
 				variant="outline"
-				size="icon-sm"
+				size="icon-xs"
 				aria-label="Decrease font size"
 				disabled={settings.fontSize <= 10}
 				onclick={() => (settings.fontSize = Math.max(10, settings.fontSize - 1))}
@@ -63,7 +62,7 @@
 			<span class="text-foreground w-10 text-center text-sm tabular-nums">{settings.fontSize}px</span>
 			<Button
 				variant="outline"
-				size="icon-sm"
+				size="icon-xs"
 				aria-label="Increase font size"
 				disabled={settings.fontSize >= 24}
 				onclick={() => (settings.fontSize = Math.min(24, settings.fontSize + 1))}
@@ -71,28 +70,27 @@
 				<IconPlus size={15} />
 			</Button>
 		</div>
-	</section>
+	</SettingsField>
 
-	<div class="bg-border h-px"></div>
+	<Separator />
 
-	<label class="flex cursor-pointer items-center justify-between gap-3">
-		<span class="text-foreground text-sm font-medium">Line wrapping</span>
+	<SettingsField label="Line wrapping" layout="row">
 		<Switch
 			checked={settings.lineWrapping}
 			onCheckedChange={(v) => (settings.lineWrapping = v)}
 			aria-label="Line wrapping"
 		/>
-	</label>
+	</SettingsField>
 
-	<label class="flex cursor-pointer items-center justify-between gap-3">
-		<div class="flex flex-col">
-			<span class="text-foreground text-sm font-medium">Live compile</span>
-			<span class="text-muted-foreground text-xs">Recompile automatically as you type.</span>
-		</div>
+	<SettingsField
+		label="Live compile"
+		description="Recompile automatically as you type."
+		layout="row"
+	>
 		<Switch
 			checked={settings.autoCompile}
 			onCheckedChange={(v) => (settings.autoCompile = v)}
 			aria-label="Live compile"
 		/>
-	</label>
+	</SettingsField>
 </div>

@@ -157,6 +157,11 @@ fn run_tectonic(app: &tauri::AppHandle, main_tex: &std::path::Path, outdir: &std
         .arg("--synctex")
         .arg("--chatter")
         .arg("minimal")
+        // Keep compiling through recoverable TeX errors (undefined refs / macros,
+        // bad boxes, …) and still emit a best-effort PDF — the Overleaf / latexmk
+        // `nonstopmode` behaviour. Errors are surfaced in the log / Problems panel.
+        .arg("-Z")
+        .arg("continue-on-errors")
         .arg(main_tex);
     // Deterministic, app-managed package cache (so Settings can show/clear/warm it).
     if let Some(cache) = crate::engine::cache_dir(app) {
@@ -193,50 +198,51 @@ fn run_tectonic(app: &tauri::AppHandle, main_tex: &std::path::Path, outdir: &std
         format!("{}\n{}", stderr.trim_end(), tex_log)
     };
 
-    if !output.status.success() {
-        // Mirror the failure to the dev terminal so it can be read/debugged there.
-        eprintln!(
-            "[glyph] LaTeX compilation failed (exit {:?}):\n{}",
-            output.status.code(),
-            if stderr.trim().is_empty() {
-                tex_log.as_str()
-            } else {
-                stderr.trim()
-            }
-        );
-        // No TeX log written ⇒ the engine itself crashed (rather than a normal
-        // LaTeX error). Most often an OpenType icon font (e.g. fontawesome5) on
-        // the stable engine — the nightly build fixes it.
-        let message = if tex_log.trim().is_empty() {
-            format!(
-                "The LaTeX engine exited unexpectedly (code {:?}) without producing a log — \
-                 a package likely crashed it (often an icon font such as fontawesome5 on the \
-                 stable engine). Try the Nightly engine in Settings → Engine.",
-                output.status.code()
-            )
-        } else {
-            "LaTeX compilation failed.".to_string()
-        };
-        return CompileResult::failure(message, log);
-    }
-
+    // Prefer emitting whatever PDF was produced. With `continue-on-errors`,
+    // Tectonic renders a best-effort PDF for recoverable errors (and still exits
+    // non-zero), so a present PDF means "show it" — the errors live in the log
+    // and surface in the Problems panel, exactly like Overleaf.
     let pdf_path = outdir.join(format!("{stem}.pdf"));
-    match std::fs::read(&pdf_path) {
-        Ok(bytes) => CompileResult {
+    if let Ok(bytes) = std::fs::read(&pdf_path) {
+        if !output.status.success() {
+            eprintln!(
+                "[glyph] compiled with errors (exit {:?}) — showing best-effort PDF",
+                output.status.code()
+            );
+        }
+        return CompileResult {
             success: true,
             pdf_base64: Some(general_purpose::STANDARD.encode(bytes)),
             log,
             message: None,
             synctex: read_synctex(outdir, &stem),
-        },
-        Err(e) => {
-            eprintln!("[glyph] Tectonic reported success but no PDF was found: {e}");
-            CompileResult::failure(
-                format!("Tectonic reported success but no PDF was found: {e}"),
-                log,
-            )
-        }
+        };
     }
+
+    // No PDF at all — a genuine failure. Mirror it to the dev terminal too.
+    eprintln!(
+        "[glyph] LaTeX compilation failed (exit {:?}):\n{}",
+        output.status.code(),
+        if stderr.trim().is_empty() {
+            tex_log.as_str()
+        } else {
+            stderr.trim()
+        }
+    );
+    // No TeX log written ⇒ the engine itself crashed (rather than a normal
+    // LaTeX error). Most often an OpenType icon font (e.g. fontawesome5) on
+    // the stable engine — the nightly build fixes it.
+    let message = if tex_log.trim().is_empty() {
+        format!(
+            "The LaTeX engine exited unexpectedly (code {:?}) without producing a log — \
+             a package likely crashed it (often an icon font such as fontawesome5 on the \
+             stable engine). Try the Nightly engine in Settings → Engine.",
+            output.status.code()
+        )
+    } else {
+        "LaTeX compilation failed — no PDF was produced. See the Problems panel.".to_string()
+    };
+    CompileResult::failure(message, log)
 }
 
 /// Compile a standalone LaTeX `source` string into a PDF (no project on disk).

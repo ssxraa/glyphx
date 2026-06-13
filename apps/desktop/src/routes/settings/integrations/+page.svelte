@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { EngineSettings } from '@glyph/ui/application';
+	import { Badge } from '@glyph/ui/badge';
 	import { Button } from '@glyph/ui/button';
+	import { Separator } from '@glyph/ui/separator';
+	import { SettingsField } from '@glyph/ui/settings-field';
 	import { toast } from '@glyph/ui/sonner';
 	import { IconCloud } from '@tabler/icons-svelte';
 	import { engineManager } from '$lib/engine';
@@ -24,34 +27,27 @@
 		</p>
 	</div>
 
-	<section class="flex flex-col gap-3">
-		<span class="text-foreground text-sm font-medium">LaTeX engine</span>
+	<SettingsField label="LaTeX engine">
 		<EngineSettings engine={engineManager} />
-	</section>
+	</SettingsField>
 
-	<div class="bg-border h-px"></div>
+	<Separator />
 
-	<section class="flex flex-col gap-2">
-		<span class="text-foreground text-sm font-medium">System integration</span>
-		<p class="text-muted-foreground text-xs leading-relaxed">
-			Add an “Open with Glyph” entry to the folder right-click menu. (.tex and .glyx files are
-			associated by the installer.)
-		</p>
-		<Button variant="outline" size="sm" class="self-start" onclick={addShellIntegration}>
+	<SettingsField
+		label="System integration"
+		description="Add an “Open with Glyph” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
+	>
+		<Button variant="outline" size="sm" class="mt-1 self-start" onclick={addShellIntegration}>
 			Add “Open with Glyph”
 		</Button>
-	</section>
+	</SettingsField>
 
-	<div class="bg-border h-px"></div>
+	<Separator />
 
 	<section class="flex flex-col gap-2">
 		<div class="flex items-center gap-2">
 			<span class="text-foreground text-sm font-medium">Cloud sync</span>
-			<span
-				class="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase"
-			>
-				Coming soon
-			</span>
+			<Badge variant="secondary">Coming soon</Badge>
 		</div>
 		<div
 			class="border-border text-muted-foreground flex items-center gap-3 rounded-lg border border-dashed px-4 py-5 text-sm"

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Button } from '@glyph/ui/button';
 	import { Segmented } from '@glyph/ui/segmented';
+	import { Separator } from '@glyph/ui/separator';
+	import { SettingsField } from '@glyph/ui/settings-field';
 	import {
 	  EDITOR_FONT_LABELS,
 	  settings,
@@ -426,12 +428,10 @@
 				<Button variant="outline" size="sm" class="mt-1">Initialize repository</Button>
 			</div>
 		{:else}
-			<!-- Settings -->
-			<div class="flex flex-col gap-3 px-1 pt-0.5 pb-2">
-				<div class="flex flex-col gap-1">
-					<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-						Appearance
-					</span>
+			<!-- Settings — same SettingsField / Separator primitives as the
+			     /settings route, in the compact (sm) size. -->
+			<div class="flex flex-col gap-4 px-1 pt-0.5 pb-2">
+				<SettingsField size="sm" label="Appearance">
 					<Segmented
 						options={appearanceOpts}
 						value={settings.appearance}
@@ -439,12 +439,9 @@
 						size="sm"
 						aria-label="Appearance"
 					/>
-				</div>
+				</SettingsField>
 
-				<div class="flex flex-col gap-1">
-					<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-						LaTeX grammar
-					</span>
+				<SettingsField size="sm" label="LaTeX grammar">
 					<Segmented
 						options={grammarOpts}
 						value={settings.grammar}
@@ -452,12 +449,9 @@
 						size="sm"
 						aria-label="LaTeX grammar"
 					/>
-				</div>
+				</SettingsField>
 
-				<div class="flex flex-col gap-1">
-					<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-						Editor font
-					</span>
+				<SettingsField size="sm" label="Editor font">
 					<Segmented
 						options={fontOpts}
 						value={settings.font}
@@ -465,10 +459,9 @@
 						size="sm"
 						aria-label="Editor font"
 					/>
-				</div>
+				</SettingsField>
 
-				<div class="flex items-center justify-between gap-2">
-					<span class="text-foreground text-[13px]">Editor font size</span>
+				<SettingsField size="sm" label="Editor font size" layout="row">
 					<div class="flex items-center gap-1">
 						<Button
 							variant="outline"
@@ -492,49 +485,51 @@
 							<IconPlus size={15} />
 						</Button>
 					</div>
-				</div>
+				</SettingsField>
 
-				<div class="bg-border h-px"></div>
+				<Separator />
 
-				<label class="flex cursor-pointer items-center justify-between gap-2">
-					<span class="text-foreground text-[13px]">Line wrapping</span>
+				<SettingsField size="sm" label="Line wrapping" layout="row">
 					<Switch
 						checked={settings.lineWrapping}
 						onCheckedChange={(v) => (settings.lineWrapping = v)}
 						aria-label="Line wrapping"
 					/>
-				</label>
+				</SettingsField>
 
-				<label class="flex cursor-pointer items-center justify-between gap-2">
-					<div class="flex flex-col">
-						<span class="text-foreground text-[13px]">Live compile</span>
-						<span class="text-muted-foreground text-[11px]">Recompile as you type</span>
-					</div>
+				<SettingsField
+					size="sm"
+					label="Live compile"
+					description="Recompile as you type"
+					layout="row"
+				>
 					<Switch
 						checked={settings.autoCompile}
 						onCheckedChange={(v) => (settings.autoCompile = v)}
 						aria-label="Live compile"
 					/>
-				</label>
+				</SettingsField>
 
 				{#if engine}
 					<EngineSettings {engine} />
 				{/if}
 
 				{#if onregistershell}
-					<div class="bg-border h-px"></div>
-					<div class="flex flex-col gap-1.5">
-						<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-							System integration
-						</span>
-						<p class="text-muted-foreground text-[11px] leading-relaxed">
-							Add an “Open with Glyph” entry to the folder right-click menu. (.tex and
-							.glyx files are associated by the installer.)
-						</p>
-						<Button variant="outline" size="xs" class="self-start" onclick={() => onregistershell?.()}>
+					<Separator />
+					<SettingsField
+						size="sm"
+						label="System integration"
+						description="Add an “Open with Glyph” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
+					>
+						<Button
+							variant="outline"
+							size="xs"
+							class="self-start"
+							onclick={() => onregistershell?.()}
+						>
 							Add “Open with Glyph”
 						</Button>
-					</div>
+					</SettingsField>
 				{/if}
 			</div>
 		{/if}
