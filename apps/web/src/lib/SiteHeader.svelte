@@ -49,9 +49,7 @@
 				class="bg-primary text-primary-foreground group inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
 			>
 				Download
-				<IconArrowRight
-					class="size-3.5 transition-transform group-hover:translate-x-0.5"
-				/>
+				<IconArrowRight class="size-3.5 transition-transform group-hover:translate-x-0.5" />
 			</a>
 			<button
 				class="text-muted-foreground hover:text-foreground hover:bg-muted grid size-9 place-items-center rounded-lg transition-colors lg:hidden"

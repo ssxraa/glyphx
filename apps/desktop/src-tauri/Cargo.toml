@@ -32,3 +32,6 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 zip = { version = "2", default-features = false, features = ["deflate"] }
 flate2 = "1"
 tar = "0.4"
+# Pure-Rust Git (no system git / C deps) — keeps the client OS-agnostic and able
+# to cross-compile to mobile later. Default features use pure-Rust zlib.
+gix = { version = "0.66", features = ["status", "dirwalk", "blob-diff", "revision"] }

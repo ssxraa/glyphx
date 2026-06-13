@@ -87,14 +87,16 @@
 						<span class="bg-brand size-1.5 animate-pulse rounded-full"></span>
 						Desktop app
 					</span>
-					<h1 class="font-display max-w-3xl text-[2.4rem] leading-[1.05] tracking-[-0.035em] sm:text-6xl">
+					<h1
+						class="font-display max-w-3xl text-[2.4rem] leading-[1.05] tracking-[-0.035em] sm:text-6xl"
+					>
 						Download GlyphX.
 					</h1>
 					<p class="text-muted-foreground mt-6 max-w-[36rem] text-lg leading-relaxed">
-						The desktop app brings the engine onto your machine, so you write and compile LaTeX with no
-						connection at all. It is also where sync, Git, and your own AI key connect, straight from
-						the app through your own accounts. Pick your platform below. Builds are published on GitHub
-						Releases.
+						The desktop app brings the engine onto your machine, so you write and compile LaTeX with
+						no connection at all. It is also where sync, Git, and your own AI key connect, straight
+						from the app through your own accounts. Pick your platform below. Builds are published
+						on GitHub Releases.
 					</p>
 				</Reveal>
 			</div>
@@ -149,7 +151,9 @@
 				class="border-hairline bg-card/60 mt-4 flex flex-col items-start justify-between gap-4 rounded-2xl border p-6 sm:flex-row sm:items-center"
 			>
 				<div class="flex items-start gap-3">
-					<span class="border-hairline bg-canvas text-foreground grid size-10 shrink-0 place-items-center rounded-lg border">
+					<span
+						class="border-hairline bg-canvas text-foreground grid size-10 shrink-0 place-items-center rounded-lg border"
+					>
 						<IconWorld class="size-5" />
 					</span>
 					<div>
@@ -195,7 +199,9 @@
 
 			<Reveal variant="up" delay={80}>
 				<div class="border-hairline bg-card flex h-full flex-col rounded-2xl border p-7">
-					<span class="border-hairline bg-canvas text-foreground mb-5 grid size-10 place-items-center rounded-lg border">
+					<span
+						class="border-hairline bg-canvas text-foreground mb-5 grid size-10 place-items-center rounded-lg border"
+					>
 						<IconShieldCheck class="size-5" />
 					</span>
 					<h3 class="text-base font-semibold">Verifying your download</h3>
@@ -234,12 +240,10 @@
 				class="bg-primary text-primary-foreground relative overflow-hidden rounded-3xl px-8 py-14 text-center sm:px-16 sm:py-16"
 			>
 				<div class="relative mx-auto flex max-w-xl flex-col items-center">
-					<h2 class="font-display text-2xl tracking-tight sm:text-4xl">
-						Builds are on the way.
-					</h2>
+					<h2 class="font-display text-2xl tracking-tight sm:text-4xl">Builds are on the way.</h2>
 					<p class="text-primary-foreground/65 mt-4 max-w-md text-base leading-relaxed">
-						Desktop releases are published on GitHub. Watch the repository to hear about the first one,
-						or start writing in the browser today.
+						Desktop releases are published on GitHub. Watch the repository to hear about the first
+						one, or start writing in the browser today.
 					</p>
 					<div class="mt-8 flex flex-wrap justify-center gap-3">
 						<a

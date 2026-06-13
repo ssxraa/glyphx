@@ -144,10 +144,20 @@
 		{ label: 'Runs fully offline', glyph: true, overleaf: false, desktop: true },
 		{ label: 'Nothing uploaded to a server', glyph: true, overleaf: false, desktop: true },
 		{ label: 'No compile timeout', glyph: true, overleaf: 'Free limit', desktop: true },
-		{ label: 'Version history without paying', glyph: 'Your VCS', overleaf: 'Paid', desktop: 'Your VCS' },
+		{
+			label: 'Version history without paying',
+			glyph: 'Your VCS',
+			overleaf: 'Paid',
+			desktop: 'Your VCS'
+		},
 		{ label: 'Git without a subscription', glyph: true, overleaf: 'Paid', desktop: true },
 		{ label: 'AI help with your own key', glyph: 'Planned', overleaf: 'Paid', desktop: false },
-		{ label: 'Sync through your own cloud', glyph: 'Planned', overleaf: 'Dropbox, paid', desktop: 'Your cloud' },
+		{
+			label: 'Sync through your own cloud',
+			glyph: 'Planned',
+			overleaf: 'Dropbox, paid',
+			desktop: 'Your cloud'
+		},
 		{ label: 'Free, no account', glyph: true, overleaf: 'Limited', desktop: true }
 	];
 
@@ -241,9 +251,9 @@
 						The LaTeX editor<br class="hidden sm:block" /> Overleaf should have been.
 					</h1>
 					<p class="text-muted-foreground mt-6 max-w-[34rem] text-lg leading-relaxed">
-						Write papers, proofs, and theses in real LaTeX. Get the desktop app and everything runs on
-						your computer: the compiler, your files, and the sync, Git, and AI you connect through
-						your own accounts. Nothing has to pass through our servers.
+						Write papers, proofs, and theses in real LaTeX. Get the desktop app and everything runs
+						on your computer: the compiler, your files, and the sync, Git, and AI you connect
+						through your own accounts. Nothing has to pass through our servers.
 					</p>
 					<div class="mt-9 flex flex-wrap items-center gap-3">
 						<a
@@ -327,7 +337,9 @@ See <span class="text-brand">\cite</span>&#123;einstein1905&#125;.<span
 	<!-- Trust strip -->
 	<Reveal as="section" variant="up">
 		<div class="border-hairline mx-auto max-w-[1140px] border-y px-5 sm:px-6">
-			<div class="text-muted-foreground grid grid-cols-2 gap-y-4 py-6 font-mono text-xs sm:grid-cols-4">
+			<div
+				class="text-muted-foreground grid grid-cols-2 gap-y-4 py-6 font-mono text-xs sm:grid-cols-4"
+			>
 				<span class="flex items-center gap-2"
 					><span class="bg-brand size-1.5 rounded-full"></span> Nothing uploaded</span
 				>
@@ -354,35 +366,41 @@ See <span class="text-brand">\cite</span>&#123;einstein1905&#125;.<span
 					>
 						<span class="bg-brand size-1.5 rounded-full"></span> Why we built it
 					</span>
-					<h2 class="font-display mt-5 max-w-md text-3xl leading-[1.1] tracking-tight sm:text-[2.5rem]">
+					<h2
+						class="font-display mt-5 max-w-md text-3xl leading-[1.1] tracking-tight sm:text-[2.5rem]"
+					>
 						Overleaf got a lot of people writing LaTeX. Then it started getting in the way.
 					</h2>
 				</Reveal>
 
-				<Reveal variant="up" delay={80} class="text-muted-foreground flex flex-col gap-5 text-base leading-relaxed">
+				<Reveal
+					variant="up"
+					delay={80}
+					class="text-muted-foreground flex flex-col gap-5 text-base leading-relaxed"
+				>
 					<p>
-						Overleaf did something genuinely useful. It took LaTeX, which used to mean a huge install
-						and a wall of package errors, and put it one click away in a browser. Plenty of people
-						wrote their first paper because of it, and that is worth saying out loud.
+						Overleaf did something genuinely useful. It took LaTeX, which used to mean a huge
+						install and a wall of package errors, and put it one click away in a browser. Plenty of
+						people wrote their first paper because of it, and that is worth saying out loud.
 					</p>
 					<p>
 						The browser was also the catch. Your project lives on their servers. On a busy day the
 						editor lags on a long chapter. Let a build run too long on the free plan and you get a
 						timeout instead of a PDF. Want Git, a few more collaborators, or your full history back,
-						and you are reading a pricing page. None of that has much to do with writing LaTeX. It has
-						to do with running someone else's cloud.
+						and you are reading a pricing page. None of that has much to do with writing LaTeX. It
+						has to do with running someone else's cloud.
 					</p>
 					<p>
 						GlyphX starts from the other end. The editor and the compiler run on your computer.
-						Opening a project means reading a folder. Saving means writing a file. There is no server
-						in the loop, so there is nothing to time out, nothing to subscribe to, and nothing of
-						yours sitting on a machine you cannot see.
+						Opening a project means reading a folder. Saving means writing a file. There is no
+						server in the loop, so there is nothing to time out, nothing to subscribe to, and
+						nothing of yours sitting on a machine you cannot see.
 					</p>
 					<blockquote
 						class="border-brand text-foreground mt-2 border-l-2 pl-5 text-lg font-medium italic"
 					>
-						We wanted the thing Overleaf looked like it was going to be, before the pricing page showed
-						up.
+						We wanted the thing Overleaf looked like it was going to be, before the pricing page
+						showed up.
 					</blockquote>
 				</Reveal>
 			</div>
@@ -479,7 +497,9 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 
 <span class="text-brand">\end</span>&#123;document&#125;</pre>
 						<div class="bg-canvas/50 p-8">
-							<div class="text-muted-foreground/60 mb-4 font-mono text-[11px] tracking-widest uppercase">
+							<div
+								class="text-muted-foreground/60 mb-4 font-mono text-[11px] tracking-widest uppercase"
+							>
 								Live preview
 							</div>
 							<h3 class="font-display mb-1 text-2xl">On Local-First Typesetting</h3>
@@ -516,9 +536,9 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 					Local-first does not mean cut off from the cloud.
 				</h2>
 				<p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-					The private, heavy work stays on your machine. When you want sync, history, or a hand from a
-					model, you reach the cloud through accounts you already have. The compiler is never a server,
-					and the keys are always yours.
+					The private, heavy work stays on your machine. When you want sync, history, or a hand from
+					a model, you reach the cloud through accounts you already have. The compiler is never a
+					server, and the keys are always yours.
 				</p>
 			</Reveal>
 
@@ -528,7 +548,9 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 				{#each model as m, i (m.title)}
 					{@const Icon = m.icon}
 					<Reveal as="article" variant="up" delay={i * 70} class="bg-card flex flex-col p-7">
-						<span class="border-hairline bg-canvas text-brand mb-5 grid size-10 place-items-center rounded-lg border">
+						<span
+							class="border-hairline bg-canvas text-brand mb-5 grid size-10 place-items-center rounded-lg border"
+						>
 							<Icon class="size-5" />
 						</span>
 						<h3 class="text-base font-semibold">{m.title}</h3>
@@ -538,11 +560,13 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 			</div>
 
 			<Reveal variant="up" delay={120}>
-				<div class="border-hairline bg-brand-subtle mt-4 flex items-start gap-3 rounded-2xl border p-6">
+				<div
+					class="border-hairline bg-brand-subtle mt-4 flex items-start gap-3 rounded-2xl border p-6"
+				>
 					<IconLock class="text-brand mt-0.5 size-5 shrink-0" />
 					<p class="text-foreground/90 text-base leading-relaxed">
-						We only ever hold what you choose to share, tied to your personal account. Click share and
-						a project goes out under your name. Never click it, and your work never leaves your
+						We only ever hold what you choose to share, tied to your personal account. Click share
+						and a project goes out under your name. Never click it, and your work never leaves your
 						machine.
 					</p>
 				</div>
@@ -563,7 +587,8 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 					Plug GlyphX into the tools you already trust.
 				</h2>
 				<p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-					Instead of locking you into one cloud, GlyphX connects to yours. Here is where it is headed.
+					Instead of locking you into one cloud, GlyphX connects to yours. Here is where it is
+					headed.
 				</p>
 			</Reveal>
 
@@ -577,10 +602,14 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 						class="border-hairline bg-card group flex flex-col rounded-2xl border p-7 transition-transform duration-300 hover:-translate-y-0.5"
 					>
 						<div class="flex items-center justify-between">
-							<span class="border-hairline bg-canvas text-foreground group-hover:text-brand grid size-11 place-items-center rounded-xl border transition-colors">
+							<span
+								class="border-hairline bg-canvas text-foreground group-hover:text-brand grid size-11 place-items-center rounded-xl border transition-colors"
+							>
 								<Icon class="size-5" />
 							</span>
-							<span class="border-hairline text-muted-foreground rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase">
+							<span
+								class="border-hairline text-muted-foreground rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase"
+							>
 								{it.tag}
 							</span>
 						</div>
@@ -592,8 +621,8 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 
 			<Reveal variant="up" delay={120}>
 				<p class="text-muted-foreground mt-8 max-w-2xl text-base leading-relaxed">
-					These are the next things we are building. The rule behind all of them stays the same: your
-					providers, your keys, your data.
+					These are the next things we are building. The rule behind all of them stays the same:
+					your providers, your keys, your data.
 				</p>
 			</Reveal>
 		</div>
@@ -612,8 +641,8 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 					If you have lived in Overleaf for a while, you know these.
 				</h2>
 				<p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-					We kept hearing the same handful of complaints, and ran into most of them ourselves. Here is
-					the short list.
+					We kept hearing the same handful of complaints, and ran into most of them ourselves. Here
+					is the short list.
 				</p>
 			</Reveal>
 
@@ -634,8 +663,8 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 
 			<Reveal variant="up" delay={120}>
 				<p class="text-muted-foreground mt-10 max-w-2xl text-base leading-relaxed">
-					None of these are LaTeX problems. They are cloud problems. GlyphX does not have a cloud, so
-					it does not have them.
+					None of these are LaTeX problems. They are cloud problems. GlyphX does not have a cloud,
+					so it does not have them.
 				</p>
 			</Reveal>
 		</div>
@@ -658,12 +687,18 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 			<Reveal variant="up" delay={80} class="mt-10">
 				<div class="border-hairline overflow-x-auto rounded-2xl border">
 					<div class="grid min-w-[640px] grid-cols-[1.8fr_1fr_1fr_1fr] text-sm">
-						<div class="text-muted-foreground bg-card px-5 py-4 font-mono text-[11px] tracking-widest uppercase">
+						<div
+							class="text-muted-foreground bg-card px-5 py-4 font-mono text-[11px] tracking-widest uppercase"
+						>
 							&nbsp;
 						</div>
 						<div class="bg-card text-foreground px-3 py-4 text-center font-semibold">GlyphX</div>
-						<div class="bg-card text-muted-foreground px-3 py-4 text-center font-medium">Overleaf free</div>
-						<div class="bg-card text-muted-foreground px-3 py-4 text-center font-medium">Desktop&nbsp;TeX</div>
+						<div class="bg-card text-muted-foreground px-3 py-4 text-center font-medium">
+							Overleaf free
+						</div>
+						<div class="bg-card text-muted-foreground px-3 py-4 text-center font-medium">
+							Desktop&nbsp;TeX
+						</div>
 
 						{#each comparison as row (row.label)}
 							<div class="border-hairline text-foreground/90 border-t px-5 py-4">{row.label}</div>
@@ -717,7 +752,9 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 				</h2>
 			</Reveal>
 
-			<div class="mt-12 grid gap-px overflow-hidden rounded-2xl bg-hairline border-hairline border sm:grid-cols-3">
+			<div
+				class="mt-12 grid gap-px overflow-hidden rounded-2xl bg-hairline border-hairline border sm:grid-cols-3"
+			>
 				{#each steps as s, i (s.n)}
 					<Reveal as="article" variant="up" delay={i * 80} class="bg-card flex flex-col p-7">
 						<span class="text-brand font-mono text-sm font-semibold">{s.n}</span>
@@ -746,7 +783,12 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 
 				<div class="flex flex-col">
 					{#each faqs as f, i (f.q)}
-						<Reveal as="div" variant="up" delay={i * 40} class="border-hairline border-t py-6 first:border-t-0 first:pt-0">
+						<Reveal
+							as="div"
+							variant="up"
+							delay={i * 40}
+							class="border-hairline border-t py-6 first:border-t-0 first:pt-0"
+						>
 							<h3 class="text-foreground text-base font-semibold">{f.q}</h3>
 							<p class="text-muted-foreground mt-2 text-sm leading-relaxed">{f.a}</p>
 						</Reveal>
@@ -772,8 +814,8 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 						Keep your research on your own machine.
 					</h2>
 					<p class="text-primary-foreground/65 mt-4 max-w-md text-base leading-relaxed">
-						Start in the browser for free, or get the desktop app and work fully offline. No account,
-						no upload, no waiting on a server.
+						Start in the browser for free, or get the desktop app and work fully offline. No
+						account, no upload, no waiting on a server.
 					</p>
 					<div class="mt-9 flex flex-wrap justify-center gap-3">
 						<a

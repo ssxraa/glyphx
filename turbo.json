@@ -20,7 +20,13 @@
     "lint:rust": {
       "cache": false
     },
+    "lint:rust:fix": {
+      "cache": false
+    },
     "format": {
+      "cache": false
+    },
+    "format:rust": {
       "cache": false
     },
     "format:check": {}

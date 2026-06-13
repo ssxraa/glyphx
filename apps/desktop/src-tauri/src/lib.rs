@@ -1,5 +1,6 @@
 mod compile;
 mod engine;
+mod git;
 mod project;
 mod shell_integration;
 
@@ -84,6 +85,10 @@ pub fn run() {
             project::import_zip,
             project::export_zip,
             shell_integration::register_shell_integration,
+            git::git_is_repo,
+            git::git_init,
+            git::git_head,
+            git::git_log,
             take_launch_path
         ])
         .run(tauri::generate_context!())

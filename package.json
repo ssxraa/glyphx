@@ -18,8 +18,10 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "lint:rust": "turbo run lint:rust",
+    "lint:rust:fix": "turbo run lint:rust:fix",
     "format": "turbo run format",
-    "format:check": "turbo run format:check"
+    "format:check": "turbo run format:check",
+    "fmt": "turbo run format format:rust"
   },
   "devDependencies": {
     "turbo": "^2"

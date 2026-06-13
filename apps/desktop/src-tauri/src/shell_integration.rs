@@ -17,9 +17,11 @@ pub fn register_shell_integration() -> Result<String, String> {
     }
     #[cfg(not(windows))]
     {
-        Ok("Folder association is only set up on Windows; .tex / .glyx files are \
+        Ok(
+            "Folder association is only set up on Windows; .tex / .glyx files are \
             associated via the installer on this platform."
-            .to_string())
+                .to_string(),
+        )
     }
 }
 
