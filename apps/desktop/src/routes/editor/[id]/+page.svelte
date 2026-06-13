@@ -6,6 +6,7 @@
 	import { projects, projectViewTransitionName } from '@glyphx/ui/projects';
 	import { compileLatex, compileProject } from '$lib/compile';
 	import { engineManager } from '$lib/engine';
+	import { gitProvider } from '$lib/git';
 	import { projectHost } from '$lib/project';
 	import { saveFile } from '$lib/save';
 
@@ -35,6 +36,7 @@
 				compile={compileLatex}
 				{compileProject}
 				engine={engineManager}
+				git={gitProvider}
 				project={projectHost}
 				openPathOnMount={project.root}
 				{saveFile}

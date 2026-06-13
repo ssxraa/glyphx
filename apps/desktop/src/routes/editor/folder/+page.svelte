@@ -2,6 +2,7 @@
 	import { Workbench } from '@glyphx/ui/application';
 	import { compileLatex, compileProject } from '$lib/compile';
 	import { engineManager } from '$lib/engine';
+	import { gitProvider } from '$lib/git';
 	import { launch } from '$lib/launch';
 	import { projectHost } from '$lib/project';
 	import { saveFile } from '$lib/save';
@@ -21,6 +22,7 @@
 	compile={compileLatex}
 	{compileProject}
 	engine={engineManager}
+	git={gitProvider}
 	project={projectHost}
 	{openPathOnMount}
 	{saveFile}

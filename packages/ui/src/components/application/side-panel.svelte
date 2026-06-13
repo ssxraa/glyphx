@@ -2,7 +2,6 @@
 	import { Button } from '@glyphx/ui/button';
 	import { Segmented } from '@glyphx/ui/segmented';
 	import { Separator } from '@glyphx/ui/separator';
-	import { SettingsField } from '@glyphx/ui/settings-field';
 	import {
 	  EDITOR_FONT_LABELS,
 	  settings,
@@ -10,12 +9,14 @@
 	  type EditorFont,
 	  type LatexGrammar
 	} from '@glyphx/ui/settings';
+	import { SettingsField } from '@glyphx/ui/settings-field';
 	import { Switch } from '@glyphx/ui/switch';
 	import {
+	  IconChevronDown,
 	  IconChevronRight,
 	  IconChevronUp,
-	  IconChevronDown,
 	  IconFilePlus,
+	  IconFileText,
 	  IconFold,
 	  IconFolderOpen,
 	  IconFolderPlus,
@@ -23,16 +24,20 @@
 	  IconList,
 	  IconMinus,
 	  IconPlus,
+	  IconRefresh,
 	  IconReplace,
-	  IconReplaceFilled
+	  IconReplaceFilled,
+	  IconSearchOff
 	} from '@tabler/icons-svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import type { ActivityView } from './activity-bar.svelte';
 	import EngineSettings, { type EngineManager } from './engine-settings.svelte';
-	import FileTree, { type TreeNode } from './file-tree.svelte';
 	import { canDropInto, getDrag, setDrag } from './file-dnd';
-	import { parseOutline, baseLevel } from './outline';
+	import FileTree, { type TreeNode } from './file-tree.svelte';
+	import GitPanel, { type GitProvider } from './git-panel.svelte';
+	import { baseLevel, parseOutline } from './outline';
+	import { SEARCH_BTN, SEARCH_COUNT, SEARCH_INPUT, searchPill } from './search-ui';
 
 	type FileMeta = { id: string; name: string };
 	type SearchOptions = {
@@ -41,6 +46,7 @@
 		caseSensitive?: boolean;
 		wholeWord?: boolean;
 		regexp?: boolean;
+		preserveCase?: boolean;
 	};
 	type SearchMatch = { from: number; to: number; line: number; column: number; text: string };
 
@@ -61,6 +67,8 @@
 		widthPx = 240,
 		source = '',
 		engine,
+		git,
+		projectRoot = null,
 		onopen,
 		onnew,
 		onnewfolder,
@@ -99,6 +107,10 @@
 		/** Active file's text — drives the Outline (sectioning) view. */
 		source?: string;
 		engine?: EngineManager;
+		/** Host-injected Git backend (desktop). Enables the Source Control view. */
+		git?: GitProvider;
+		/** Absolute path of the open project folder, for Git operations. */
+		projectRoot?: string | null;
 		onopen?: (id: string) => void;
 		onnew?: () => void;
 		onnewfolder?: () => void;
@@ -255,7 +267,9 @@
 	let matchCase = $state(false);
 	let wholeWord = $state(false);
 	let useRegex = $state(false);
+	let preserveCase = $state(false);
 	let showReplace = $state(false);
+	let resultsCollapsed = $state(false);
 	let searchInputEl = $state<HTMLInputElement>();
 
 	function emitSearch() {
@@ -264,8 +278,27 @@
 			replace,
 			caseSensitive: matchCase,
 			wholeWord,
-			regexp: useRegex
+			regexp: useRegex,
+			preserveCase
 		});
+	}
+
+	// The file the matches belong to (search runs over the active document).
+	const activeFileName = $derived.by(() => {
+		const name = files.find((f) => f.id === activeId)?.name ?? '';
+		const i = name.lastIndexOf('/');
+		return (i === -1 ? name : name.slice(i + 1)) || projectName;
+	});
+
+	// Header actions for the Search view (VS Code parity).
+	function refreshResults() {
+		if (query) emitSearch();
+	}
+	function clearSearchView() {
+		query = '';
+		emitSearch(); // empty query → host clears matches + highlight
+		resultsCollapsed = false;
+		searchInputEl?.focus();
 	}
 	const findOptions = $derived([
 		{
@@ -363,6 +396,37 @@
 						<IconFolderOpen size={15} />
 					</button>
 				{/if}
+			</div>
+		{:else if view === 'search'}
+			<div class="-mr-1 flex items-center gap-0.5">
+				<button
+					class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:opacity-40"
+					title="Refresh results"
+					aria-label="Refresh results"
+					disabled={!query}
+					onclick={refreshResults}
+				>
+					<IconRefresh size={15} />
+				</button>
+				<button
+					class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:opacity-40"
+					title="Clear search"
+					aria-label="Clear search"
+					disabled={!query}
+					onclick={clearSearchView}
+				>
+					<IconSearchOff size={15} />
+				</button>
+				<button
+					class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:opacity-40"
+					title={resultsCollapsed ? 'Expand results' : 'Collapse results'}
+					aria-label={resultsCollapsed ? 'Expand results' : 'Collapse results'}
+					aria-pressed={resultsCollapsed}
+					disabled={!searchResults.length}
+					onclick={() => (resultsCollapsed = !resultsCollapsed)}
+				>
+					<IconFold size={15} />
+				</button>
 			</div>
 		{/if}
 	</div>
@@ -465,14 +529,14 @@
 			<div class="flex flex-col gap-1 pt-0.5">
 				<div class="flex items-start gap-0.5">
 					<button
-						class="text-muted-foreground hover:bg-muted hover:text-foreground mt-0.5 grid size-5 shrink-0 place-items-center rounded transition-colors"
+						class="{SEARCH_BTN} mt-0.5 shrink-0"
 						title={showReplace ? 'Hide replace' : 'Toggle replace'}
 						aria-label="Toggle replace"
 						aria-expanded={showReplace}
 						onclick={() => (showReplace = !showReplace)}
 					>
 						<IconChevronRight
-							size={14}
+							size={15}
 							class="transition-transform duration-200 {showReplace ? 'rotate-90' : ''}"
 						/>
 					</button>
@@ -485,7 +549,7 @@
 								bind:value={query}
 								oninput={emitSearch}
 								onkeydown={onSearchKeydown}
-								class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-7 w-full rounded border py-1 pr-16 pl-2 text-[13px] outline-none transition-[box-shadow,border-color] focus-visible:ring-1"
+								class="{SEARCH_INPUT} w-full pr-[4.75rem]"
 								placeholder="Find"
 								aria-label="Find in document"
 								spellcheck="false"
@@ -493,9 +557,7 @@
 							<div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
 								{#each findOptions as opt (opt.key)}
 									<button
-										class="grid size-[18px] place-items-center rounded font-mono text-[10px] leading-none transition-colors {opt.on
-											? 'bg-brand-subtle text-brand'
-											: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+										class={searchPill(opt.on)}
 										title={opt.title}
 										aria-label={opt.title}
 										aria-pressed={opt.on}
@@ -507,96 +569,131 @@
 							</div>
 						</div>
 
-						<!-- Match count + nav -->
-						<div class="flex items-center gap-1">
-							<span class="text-muted-foreground/70 text-xs tabular-nums">
-								{#if query && searchResults.length}
-									{searchActive + 1} of {searchResults.length}
-								{:else if query}
-									No results
-								{/if}
-							</span>
-							<button
-								class="text-muted-foreground hover:bg-muted hover:text-foreground ml-auto grid size-5 place-items-center rounded transition-colors disabled:opacity-40"
-								title="Previous match (Shift+Enter)"
-								aria-label="Previous match"
-								disabled={!searchResults.length}
-								onclick={() => onsearchprev?.()}
-							>
-								<IconChevronUp size={15} />
-							</button>
-							<button
-								class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-5 place-items-center rounded transition-colors disabled:opacity-40"
-								title="Next match (Enter)"
-								aria-label="Next match"
-								disabled={!searchResults.length}
-								onclick={() => onsearchnext?.()}
-							>
-								<IconChevronDown size={15} />
-							</button>
-						</div>
-
-						<!-- Replace — "replace all" button lives inside the field -->
+						<!-- Replace — preserve-case toggle lives inside the field (VS Code
+						     parity); replace / replace-all sit alongside it. -->
 						{#if showReplace}
-							<div class="relative">
-								<input
-									bind:value={replace}
-									class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-7 w-full rounded border py-1 pr-12 pl-2 text-[13px] outline-none transition-[box-shadow,border-color] focus-visible:ring-1"
-									placeholder={useRegex ? 'Replace ($1, $&…)' : 'Replace'}
-									aria-label="Replace with"
-									spellcheck="false"
-								/>
-								<div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
-									<button
-										class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-[18px] place-items-center rounded transition-colors disabled:opacity-40"
-										title="Replace next match"
-										aria-label="Replace next match"
-										disabled={!searchResults.length}
-										onclick={() => onreplacecurrent?.(replace)}
-									>
-										<IconReplace size={14} />
-									</button>
-									<button
-										class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-[18px] place-items-center rounded transition-colors disabled:opacity-40"
-										title="Replace all matches"
-										aria-label="Replace all matches"
-										disabled={!searchResults.length}
-										onclick={() => onreplaceall?.(replace)}
-									>
-										<IconReplaceFilled size={14} />
-									</button>
+							<div class="flex items-center gap-1">
+								<div class="relative min-w-0 flex-1">
+									<input
+										bind:value={replace}
+										class="{SEARCH_INPUT} w-full pr-7"
+										placeholder={useRegex ? 'Replace ($1, $&…)' : 'Replace'}
+										aria-label="Replace with"
+										spellcheck="false"
+									/>
+									<div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
+										<button
+											class={searchPill(preserveCase)}
+											title="Preserve case"
+											aria-label="Preserve case"
+											aria-pressed={preserveCase}
+											onclick={() => {
+												preserveCase = !preserveCase;
+												emitSearch();
+											}}
+										>
+											AB
+										</button>
+									</div>
 								</div>
+								<button
+									class="{SEARCH_BTN} shrink-0"
+									title="Replace next match"
+									aria-label="Replace next match"
+									disabled={!searchResults.length}
+									onclick={() => onreplacecurrent?.(replace)}
+								>
+									<IconReplace size={15} />
+								</button>
+								<button
+									class="{SEARCH_BTN} shrink-0"
+									title="Replace all matches"
+									aria-label="Replace all matches"
+									disabled={!searchResults.length}
+									onclick={() => onreplaceall?.(replace)}
+								>
+									<IconReplaceFilled size={15} />
+								</button>
 							</div>
 						{/if}
 					</div>
 				</div>
 
-				<!-- Results list -->
+				<!-- Results header: match count + navigation, attached to the list. -->
+				{#if query}
+					<div class="flex items-center gap-1 px-0.5">
+						<span class={SEARCH_COUNT}>
+							{#if searchResults.length}
+								{searchActive + 1} of {searchResults.length}
+							{:else}
+								No results
+							{/if}
+						</span>
+						<button
+							class="{SEARCH_BTN} ml-auto"
+							title="Previous match (Shift+Enter)"
+							aria-label="Previous match"
+							disabled={!searchResults.length}
+							onclick={() => onsearchprev?.()}
+						>
+							<IconChevronUp size={15} />
+						</button>
+						<button
+							class={SEARCH_BTN}
+							title="Next match (Enter)"
+							aria-label="Next match"
+							disabled={!searchResults.length}
+							onclick={() => onsearchnext?.()}
+						>
+							<IconChevronDown size={15} />
+						</button>
+					</div>
+				{/if}
+
+				<!-- Results — grouped under the active file, collapsible (VS Code parity). -->
 				{#if query && searchResults.length}
-					<ul class="mt-1 flex flex-col">
-						{#each searchResults.slice(0, 500) as m, i (i)}
-							<li>
-								<button
-									class="flex w-full items-baseline gap-1.5 rounded px-2 py-0.5 text-left transition-colors {i ===
-									searchActive
-										? 'bg-accent text-accent-foreground'
-										: 'hover:bg-muted text-muted-foreground'}"
-									onclick={() => ongotoresult?.(i)}
-									title={`Line ${m.line}`}
-								>
-									<span class="text-muted-foreground/50 w-7 shrink-0 text-right font-mono text-[10px] tabular-nums">
-										{m.line}
-									</span>
-									<span class="truncate font-mono text-[11px]">{m.text.trim() || ' '}</span>
-								</button>
-							</li>
-						{/each}
-					</ul>
-					{#if searchResults.length > 500}
-						<p class="text-muted-foreground/60 px-2 text-[11px]">
-							Showing first 500 of {searchResults.length}.
-						</p>
-					{/if}
+					<div class="mt-1">
+						<button
+							class="text-muted-foreground hover:bg-muted/60 flex w-full items-center gap-1 rounded px-1 py-1 text-left transition-colors"
+							aria-expanded={!resultsCollapsed}
+							onclick={() => (resultsCollapsed = !resultsCollapsed)}
+						>
+							<IconChevronRight
+								size={13}
+								class="shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] {resultsCollapsed
+									? ''
+									: 'rotate-90'}"
+							/>
+							<IconFileText size={14} class="shrink-0" />
+							<span class="text-foreground truncate text-[13px] font-medium">{activeFileName}</span>
+						</button>
+						{#if !resultsCollapsed}
+							<ul class="flex flex-col">
+								{#each searchResults.slice(0, 500) as m, i (i)}
+									<li>
+										<button
+											class="flex w-full items-baseline gap-1.5 rounded py-0.5 pr-2 pl-6 text-left transition-colors {i ===
+											searchActive
+												? 'bg-accent text-accent-foreground'
+												: 'hover:bg-muted text-muted-foreground'}"
+											onclick={() => ongotoresult?.(i)}
+											title={`Line ${m.line}`}
+										>
+											<span class="text-muted-foreground/50 w-7 shrink-0 text-right font-mono text-[10px] tabular-nums">
+												{m.line}
+											</span>
+											<span class="truncate font-mono text-[11px]">{m.text.trim() || ' '}</span>
+										</button>
+									</li>
+								{/each}
+							</ul>
+							{#if searchResults.length > 500}
+								<p class="text-muted-foreground/60 px-2 text-[11px]">
+									Showing first 500 of {searchResults.length}.
+								</p>
+							{/if}
+						{/if}
+					</div>
 				{:else if !query}
 					<p class="text-muted-foreground/70 mt-1 px-1.5 text-[11px]">
 						Find &amp; replace in the active file.
@@ -604,13 +701,16 @@
 				{/if}
 			</div>
 		{:else if view === 'git'}
-			<div
-				class="text-muted-foreground flex flex-col items-center gap-2 px-2 py-8 text-center text-xs"
-			>
-				<IconGitBranch size={22} />
-				<p>No source control provider connected.</p>
-				<Button variant="outline" size="sm" class="mt-1">Initialize repository</Button>
-			</div>
+			{#if git}
+				<GitPanel {git} root={projectRoot} />
+			{:else}
+				<div
+					class="text-muted-foreground flex flex-col items-center gap-2 px-2 py-8 text-center text-xs"
+				>
+					<IconGitBranch size={22} />
+					<p>Source control isn't available here.</p>
+				</div>
+			{/if}
 		{:else}
 			<!-- Settings — same SettingsField / Separator primitives as the
 			     /settings route, in the compact (sm) size. -->

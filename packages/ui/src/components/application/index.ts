@@ -14,4 +14,11 @@ export {
 	type PrefetchResult,
 	type SystemTexInfo,
 } from "./engine-settings.svelte";
+export {
+	default as GitPanel,
+	type GitProvider,
+	type GitChange,
+	type GitCommitEntry,
+	type GitHeadInfo,
+} from "./git-panel.svelte";
 export type { ProjectHost, ProjectFile } from "./project";

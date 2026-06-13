@@ -88,12 +88,14 @@ Nothing is uploaded. Nothing leaves this device.
   import { onDestroy, onMount } from "svelte";
 
   import ActivityBar, { type ActivityView } from "./activity-bar.svelte";
+  import { applyCase } from "./case-preserve";
   import CodeEditor from "./code-editor.svelte";
   import CommandPalette from "./command-palette.svelte";
   import EditorFindBar from "./editor-find-bar.svelte";
   import type { EngineManager } from "./engine-settings.svelte";
   import ExportMenu from "./export-menu.svelte";
   import FormatToolbar from "./format-toolbar.svelte";
+  import type { GitProvider } from "./git-panel.svelte";
   import MenuBar, { type Menu } from "./menu-bar.svelte";
   import PdfView from "./pdf-view.svelte";
   import ProblemsPanel from "./problems-panel.svelte";
@@ -146,6 +148,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     compile,
     compileProject,
     engine,
+    git,
     saveFile,
     project,
     openPathOnMount,
@@ -177,6 +180,8 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       synctex?: string;
     }>;
     engine?: EngineManager;
+    /** Host-injected Git backend (desktop = gitoxide). Enables Source Control. */
+    git?: GitProvider;
     /**
      * Host-injected file save (desktop = Tauri dialog + fs). Resolves `true`
      * when written, `false` when the user cancels; throws on failure. When
@@ -372,34 +377,45 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   };
   function splitExt(name: string): { base: string; ext: string } {
     const i = name.lastIndexOf(".");
-    return i > 0 ? { base: name.slice(0, i), ext: name.slice(i) } : { base: name, ext: "" };
+    return i > 0
+      ? { base: name.slice(0, i), ext: name.slice(i) }
+      : { base: name, ext: "" };
   }
 
   const relExists = (rel: string, exceptId?: string) =>
-    files.some((f) => f.id !== exceptId && f.name.toLowerCase() === rel.toLowerCase());
+    files.some(
+      (f) => f.id !== exceptId && f.name.toLowerCase() === rel.toLowerCase(),
+    );
   function folderExists(path: string): boolean {
     const lower = path.toLowerCase();
-    for (const p of existingFolderPaths()) if (p.toLowerCase() === lower) return true;
+    for (const p of existingFolderPaths())
+      if (p.toLowerCase() === lower) return true;
     return false;
   }
   function uniqueLeaf(dir: string, leaf: string): string {
     const { base, ext } = splitExt(leaf);
     let candidate = leaf;
     let n = 1;
-    while (relExists(dir ? `${dir}/${candidate}` : candidate)) candidate = `${base} (${++n})${ext}`;
+    while (relExists(dir ? `${dir}/${candidate}` : candidate))
+      candidate = `${base} (${++n})${ext}`;
     return candidate;
   }
   function uniqueFolder(dir: string, name: string): string {
     let candidate = name;
     let n = 1;
-    while (folderExists(dir ? `${dir}/${candidate}` : candidate)) candidate = `${name} (${++n})`;
+    while (folderExists(dir ? `${dir}/${candidate}` : candidate))
+      candidate = `${name} (${++n})`;
     return candidate;
   }
 
   // A promise-based modal: an op `await`s the user's choice; the dialog markup
   // resolves it. One pending request at a time (moves are sequential).
   type ConflictAction = "replace" | "rename" | "skip" | "merge";
-  type ConflictChoice = { action: ConflictAction; newName?: string; applyToAll?: boolean };
+  type ConflictChoice = {
+    action: ConflictAction;
+    newName?: string;
+    applyToAll?: boolean;
+  };
   type Pending =
     | {
         kind: "conflict";
@@ -441,7 +457,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       };
     });
   }
-  function askConfirm(title: string, message: string, confirmLabel: string): Promise<boolean> {
+  function askConfirm(
+    title: string,
+    message: string,
+    confirmLabel: string,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       pending = { kind: "confirm", title, message, confirmLabel, resolve };
     });
@@ -467,7 +487,10 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   }
 
   /** Apply a fully-resolved new relative path to one file (disk + state). */
-  async function applyRename(f: GlyphFile, newRel: string): Promise<string | null> {
+  async function applyRename(
+    f: GlyphFile,
+    newRel: string,
+  ): Promise<string | null> {
     if (project && projectRoot && f.path) {
       const newAbs = joinPath(projectRoot, newRel);
       try {
@@ -535,11 +558,17 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
 
   /** Move every file under `srcPath` to `newPath` (disk + state). Shared by
    * folder move and folder rename. */
-  async function relocateFolder(srcPath: string, newPath: string): Promise<void> {
+  async function relocateFolder(
+    srcPath: string,
+    newPath: string,
+  ): Promise<void> {
     await flushActive();
     if (project && projectRoot) {
       try {
-        await project.rename(joinPath(projectRoot, srcPath), joinPath(projectRoot, newPath));
+        await project.rename(
+          joinPath(projectRoot, srcPath),
+          joinPath(projectRoot, newPath),
+        );
       } catch (e) {
         toast.error(`Move failed — ${e}`);
         return;
@@ -564,7 +593,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       return { ...f, name: newName };
     });
     extraFolders = extraFolders.map((p) =>
-      p === srcPath ? newPath : p.startsWith(prefix) ? newPath + p.slice(srcPath.length) : p,
+      p === srcPath
+        ? newPath
+        : p.startsWith(prefix)
+          ? newPath + p.slice(srcPath.length)
+          : p,
     );
     activeId = nextActive;
     mainId = nextMain;
@@ -587,7 +620,10 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         return;
       }
       if (res.action === "rename") {
-        const nn = uniqueFolder(targetDir, (res.newName || name).trim() || name);
+        const nn = uniqueFolder(
+          targetDir,
+          (res.newName || name).trim() || name,
+        );
         newPath = targetDir ? `${targetDir}/${nn}` : nn;
       } else if (res.action === "replace") {
         try {
@@ -607,7 +643,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   async function mergeFolder(srcPath: string, dstPath: string): Promise<void> {
     await flushActive();
     const prefix = `${srcPath}/`;
-    const movers = files.filter((f) => f.name === srcPath || f.name.startsWith(prefix));
+    const movers = files.filter(
+      (f) => f.name === srcPath || f.name.startsWith(prefix),
+    );
     let batch: ConflictChoice | null = null;
     let moved = 0;
 
@@ -622,9 +660,14 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         let choice: ConflictChoice | null = batch;
         if (!choice) {
           const leaf = leafOf(cur.name);
-          choice = await askConflict(leaf, false, uniqueLeaf(dirOf(newRel), leaf), {
-            canApplyAll: movers.length > 1,
-          });
+          choice = await askConflict(
+            leaf,
+            false,
+            uniqueLeaf(dirOf(newRel), leaf),
+            {
+              canApplyAll: movers.length > 1,
+            },
+          );
           if (choice.applyToAll) batch = choice;
         }
         if (choice.action === "skip") continue;
@@ -650,11 +693,15 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       ...new Set(
         extraFolders
           .filter((p) => p !== srcPath)
-          .map((p) => (p.startsWith(prefix) ? dstPath + p.slice(srcPath.length) : p)),
+          .map((p) =>
+            p.startsWith(prefix) ? dstPath + p.slice(srcPath.length) : p,
+          ),
       ),
     ];
     // Clean up the source folder on disk only if nothing was left behind (skips).
-    const leftover = files.some((f) => f.name === srcPath || f.name.startsWith(prefix));
+    const leftover = files.some(
+      (f) => f.name === srcPath || f.name.startsWith(prefix),
+    );
     if (!leftover && project && projectRoot) {
       try {
         await project.remove(joinPath(projectRoot, srcPath));
@@ -683,11 +730,17 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       await project.remove(joinPath(projectRoot, path));
     }
     const prefix = `${path}/`;
-    const removed = files.filter((f) => f.name === path || f.name.startsWith(prefix));
+    const removed = files.filter(
+      (f) => f.name === path || f.name.startsWith(prefix),
+    );
     const hadMain = removed.some((f) => f.id === mainId);
     const hadActive = removed.some((f) => f.id === activeId);
-    files = files.filter((f) => !(f.name === path || f.name.startsWith(prefix)));
-    extraFolders = extraFolders.filter((p) => !(p === path || p.startsWith(prefix)));
+    files = files.filter(
+      (f) => !(f.name === path || f.name.startsWith(prefix)),
+    );
+    extraFolders = extraFolders.filter(
+      (p) => !(p === path || p.startsWith(prefix)),
+    );
     if (hadMain) {
       mainId = null;
       void writeManifest();
@@ -703,7 +756,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
 
   async function deleteFolder(path: string): Promise<void> {
     const prefix = `${path}/`;
-    const count = files.filter((f) => f.name === path || f.name.startsWith(prefix)).length;
+    const count = files.filter(
+      (f) => f.name === path || f.name.startsWith(prefix),
+    ).length;
     const tail = count ? ` and its ${count} file${count > 1 ? "s" : ""}` : "";
     const ok = await askConfirm(
       "Delete folder",
@@ -959,6 +1014,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     caseSensitive?: boolean;
     wholeWord?: boolean;
     regexp?: boolean;
+    preserveCase?: boolean;
   };
   type SearchMatch = {
     from: number;
@@ -983,6 +1039,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     clearSearch: () => void;
   };
   let editor = $state<EditorApi>();
+  // Whether the editor currently has anything to undo / redo (bound from CodeEditor).
+  let canUndo = $state(false);
+  let canRedo = $state(false);
 
   let activeView = $state<ActivityView>("files");
   let panelCollapsed = $state(false);
@@ -1032,11 +1091,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
 
   // --- Resizable sidebar (drag the edge; capped at 20% of the shell width) ---
   let shellEl = $state<HTMLElement>();
-  let shellW = $state(1280);
+  let shellW = $state(2560);
   let sidebarW = $state(240);
   let resizingSidebar = $state(false);
   const ACTIVITY_BAR_PX = 48; // the w-12 rail left of the panel
-  const maxSidebar = $derived(Math.max(180, Math.round(shellW * 0.2)));
+  const maxSidebar = $derived(Math.max(200, Math.round(shellW * 0.3)));
   const sidebarWidth = $derived(Math.min(sidebarW, maxSidebar));
 
   $effect(() => {
@@ -1058,7 +1117,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     if (resizingSidebar && shellEl) {
       const rect = shellEl.getBoundingClientRect();
       const w = e.clientX - rect.left - ACTIVITY_BAR_PX;
-      sidebarW = Math.min(maxSidebar, Math.max(180, w));
+      sidebarW = Math.min(maxSidebar, Math.max(200, w));
       return;
     }
     if (!dragging || viewMode !== "split" || !bodyEl) return;
@@ -1138,17 +1197,19 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   function replaceCurrent(replace: string) {
     const m = searchResults[searchActive];
     if (!m) return;
+    const matched = source.slice(m.from, m.to);
     let insert = replace;
     if (searchOpts.regexp) {
       try {
         let pat = searchOpts.query;
         if (searchOpts.wholeWord) pat = `\\b(?:${pat})\\b`;
         const single = new RegExp(pat, searchOpts.caseSensitive ? "" : "i");
-        insert = source.slice(m.from, m.to).replace(single, replace);
+        insert = matched.replace(single, replace);
       } catch {
         /* fall back to literal */
       }
     }
+    if (searchOpts.preserveCase) insert = applyCase(matched, insert);
     editor?.replaceRange(m.from, m.to, insert);
     runSearch({ ...searchOpts, replace });
   }
@@ -1414,8 +1475,8 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     {
       label: "Edit",
       items: [
-        { label: "Undo", shortcut: "⌘Z", run: () => editor?.undo() },
-        { label: "Redo", shortcut: "⌘⇧Z", run: () => editor?.redo() },
+        { label: "Undo", shortcut: "⌘Z", disabled: !canUndo, run: () => editor?.undo() },
+        { label: "Redo", shortcut: "⌘⇧Z", disabled: !canRedo, run: () => editor?.redo() },
         { type: "separator" },
         { label: "Bold", run: () => editor?.wrapSelection("\\textbf{", "}") },
         { label: "Italic", run: () => editor?.wrapSelection("\\textit{", "}") },
@@ -1610,7 +1671,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     <!-- Right: view toggles · export · compile -->
     <div class="inline-flex shrink-0 items-center gap-2">
       <Select bind:value={viewMode} type="single" name="viewMode">
-        <SelectTrigger size="sm" class="w-auto min-w-0 border-0" aria-label="Select view mode">
+        <SelectTrigger
+          size="sm"
+          class="w-auto min-w-0 border-0"
+          aria-label="Select view mode"
+        >
           {@const Icon = viewOptions.find((o) => o.value === viewMode)?.icon}
           {#if Icon}
             <Icon class="inline-block" />
@@ -1708,6 +1773,8 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         projectName={displayName}
         hasProject={Boolean(project)}
         {engine}
+        {git}
+        {projectRoot}
         widthPx={sidebarWidth}
         onopen={openFile}
         onnew={newFile}
@@ -1779,17 +1846,19 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
               <div class="ml-auto flex shrink-0 items-center gap-1 pl-1">
                 <div class="bg-border/70 mx-0.5 h-5 w-px"></div>
                 <button
-                  class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+                  class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:pointer-events-none disabled:opacity-40"
                   title="Undo (⌘/Ctrl+Z)"
                   aria-label="Undo"
+                  disabled={!canUndo}
                   onclick={() => editor?.undo()}
                 >
                   <IconArrowBackUp size={15} />
                 </button>
                 <button
-                  class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+                  class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:pointer-events-none disabled:opacity-40"
                   title="Redo (⌘/Ctrl+Shift+Z)"
                   aria-label="Redo"
+                  disabled={!canRedo}
                   onclick={() => editor?.redo()}
                 >
                   <IconArrowForwardUp size={15} />
@@ -1820,6 +1889,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
               <CodeEditor
                 bind:this={editor}
                 bind:value={source}
+                bind:canUndo
+                bind:canRedo
+                docKey={activeId}
                 theme={settings.resolved}
                 grammar={settings.grammar}
                 fontSize={settings.fontSize}
@@ -2104,7 +2176,10 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
           >{lineCount} lines · {wordCount} words · {charCount} chars</span
         >
         {#if statusNote}
-          <span class="text-muted-foreground/50" title="In-browser LaTeX package server">{statusNote}</span>
+          <span
+            class="text-muted-foreground/50"
+            title="In-browser LaTeX package server">{statusNote}</span
+          >
         {/if}
         <span class="text-muted-foreground/50 capitalize">{platform}</span>
       </footer>
@@ -2113,14 +2188,19 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
 </div>
 
 <!-- Explorer move/delete prompts: name-conflict resolution + destructive confirm. -->
-<Dialog open={pending !== null} onOpenChange={(o) => (o ? null : cancelPending())}>
+<Dialog
+  open={pending !== null}
+  onOpenChange={(o) => (o ? null : cancelPending())}
+>
   <DialogContent class="sm:max-w-md">
     {#if pending?.kind === "conflict"}
       <DialogHeader>
-        <DialogTitle>{pending.isFolder ? "Folder" : "File"} already exists</DialogTitle>
+        <DialogTitle
+          >{pending.isFolder ? "Folder" : "File"} already exists</DialogTitle
+        >
         <DialogDescription>
-          {pending.isFolder ? "A folder" : "A file"} named “{pending.name}” already exists
-          here.{pending.canMerge
+          {pending.isFolder ? "A folder" : "A file"} named “{pending.name}”
+          already exists here.{pending.canMerge
             ? " Merge their contents, keep both, replace it, or skip."
             : " Keep both (rename), replace it, or skip the move."}
         </DialogDescription>
@@ -2136,23 +2216,45 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
           }}
         />
         {#if pending.canApplyAll}
-          <label class="text-muted-foreground mt-1 flex items-center gap-2 text-xs select-none">
-            <input type="checkbox" bind:checked={applyToAll} class="accent-brand size-3.5" />
+          <label
+            class="text-muted-foreground mt-1 flex items-center gap-2 text-xs select-none"
+          >
+            <input
+              type="checkbox"
+              bind:checked={applyToAll}
+              class="accent-brand size-3.5"
+            />
             Apply to all remaining conflicts
           </label>
         {/if}
       </div>
       <DialogFooter>
-        <Button variant="ghost" size="sm" onclick={() => resolveConflict("skip")}>Skip</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onclick={() => resolveConflict("skip")}>Skip</Button
+        >
         {#if pending.canMerge}
-          <Button variant="outline" size="sm" onclick={() => resolveConflict("merge")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onclick={() => resolveConflict("merge")}
+          >
             Merge
           </Button>
         {/if}
-        <Button variant="destructive" size="sm" onclick={() => resolveConflict("replace")}>
+        <Button
+          variant="destructive"
+          size="sm"
+          onclick={() => resolveConflict("replace")}
+        >
           Replace
         </Button>
-        <Button size="sm" onclick={() => resolveConflict("rename", conflictName)}>Keep both</Button>
+        <Button
+          size="sm"
+          onclick={() => resolveConflict("rename", conflictName)}
+          >Keep both</Button
+        >
       </DialogFooter>
     {:else if pending?.kind === "confirm"}
       <DialogHeader>
@@ -2160,8 +2262,14 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         <DialogDescription>{pending.message}</DialogDescription>
       </DialogHeader>
       <DialogFooter>
-        <Button variant="ghost" size="sm" onclick={() => resolveConfirm(false)}>Cancel</Button>
-        <Button variant="destructive" size="sm" onclick={() => resolveConfirm(true)}>
+        <Button variant="ghost" size="sm" onclick={() => resolveConfirm(false)}
+          >Cancel</Button
+        >
+        <Button
+          variant="destructive"
+          size="sm"
+          onclick={() => resolveConfirm(true)}
+        >
           {pending.confirmLabel}
         </Button>
       </DialogFooter>

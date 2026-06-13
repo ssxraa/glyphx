@@ -12,7 +12,7 @@
 		rectangularSelection,
 		crosshairCursor,
 	} from "@codemirror/view";
-	import { EditorState, Compartment } from "@codemirror/state";
+	import { EditorState, Compartment, Transaction } from "@codemirror/state";
 	import {
 		history,
 		historyKeymap,
@@ -20,6 +20,8 @@
 		indentWithTab,
 		undo as cmUndo,
 		redo as cmRedo,
+		undoDepth,
+		redoDepth,
 	} from "@codemirror/commands";
 	import {
 		indentOnInput,
@@ -37,6 +39,7 @@
 	import { search, setSearchQuery, SearchQuery } from "@codemirror/search";
 
 	import { jetbrainsTheme, latexLanguage, type LatexGrammar } from "@glyphx/ui/editor";
+	import { applyCase } from "./case-preserve";
 
 	/**
 	 * CodeEditor — the shared CodeMirror 6 surface (web + desktop).
@@ -48,6 +51,9 @@
 	 */
 	let {
 		value = $bindable(""),
+		docKey = "",
+		canUndo = $bindable(false),
+		canRedo = $bindable(false),
 		theme = "light" as "light" | "dark",
 		grammar = "legacy" as LatexGrammar,
 		fontSize = 13,
@@ -58,6 +64,12 @@
 		oncursor,
 	}: {
 		value?: string;
+		/** Identity of the open document. Changing it resets the undo history so
+		 *  undo/redo can never reach into another file's edits. */
+		docKey?: string;
+		/** Bindable: whether there is anything to undo / redo (drives toolbar state). */
+		canUndo?: boolean;
+		canRedo?: boolean;
 		theme?: "light" | "dark";
 		grammar?: LatexGrammar;
 		fontSize?: number;
@@ -71,12 +83,15 @@
 
 	let host = $state<HTMLDivElement>();
 	let view = $state<EditorView>();
+	// Last document the undo history belongs to (non-reactive, view-local).
+	let lastDocKey: string | null = null;
 
 	const themeC = new Compartment();
 	const langC = new Compartment();
 	const fontC = new Compartment();
 	const wrapC = new Compartment();
 	const roC = new Compartment();
+	const historyC = new Compartment();
 
 	// Font size + family live in a compartment so Settings can change them live.
 	// Default is JetBrains Mono (per product spec); the host may pass another.
@@ -118,7 +133,7 @@
 				lineNumbers(),
 				highlightActiveLineGutter(),
 				highlightSpecialChars(),
-				history(),
+				historyC.of(history()),
 				foldGutter(),
 				drawSelection(),
 				dropCursor(),
@@ -153,6 +168,9 @@
 						const line = u.state.doc.lineAt(head);
 						oncursor({ line: line.number, column: head - line.from + 1 });
 					}
+					// Keep the host's undo/redo affordances in sync with the history stack.
+					canUndo = undoDepth(u.state) > 0;
+					canRedo = redoDepth(u.state) > 0;
 				}),
 			],
 		});
@@ -193,6 +211,19 @@
 		if (v) v.dispatch({ effects: roC.reconfigure(EditorState.readOnly.of(ro)) });
 	});
 
+	// Switching documents resets the undo history so undo/redo can never reach
+	// into another file's edits (a single view is reused across files). Two-step
+	// reconfigure: dropping the history field clears its state, re-adding starts
+	// a fresh stack.
+	$effect(() => {
+		const v = view;
+		const key = docKey;
+		if (!v || key === lastDocKey) return;
+		lastDocKey = key;
+		v.dispatch({ effects: historyC.reconfigure([]) });
+		v.dispatch({ effects: historyC.reconfigure(history()) });
+	});
+
 	// External value → editor (e.g. open a different file). Guarded so typing
 	// (which writes `value` via the update listener) doesn't loop.
 	$effect(() => {
@@ -200,7 +231,12 @@
 		const next = value;
 		if (!v) return;
 		if (next !== v.state.doc.toString()) {
-			v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: next } });
+			// External replacements (opening / switching files) are never undoable:
+			// undo must only walk back edits made *inside* the current file.
+			v.dispatch({
+				changes: { from: 0, to: v.state.doc.length, insert: next },
+				annotations: Transaction.addToHistory.of(false),
+			});
 		}
 	});
 
@@ -285,6 +321,8 @@
 		caseSensitive?: boolean;
 		wholeWord?: boolean;
 		regexp?: boolean;
+		/** Recase each replacement to match the case of the text it replaces. */
+		preserveCase?: boolean;
 	};
 	export type SearchMatch = { from: number; to: number; line: number; column: number; text: string };
 
@@ -359,6 +397,15 @@
 		v.dispatch({ changes: { from, to, insert }, selection: { anchor: from + insert.length } });
 	}
 
+	/** Expand `$&` / `$1`… in a replacement string against a regex match. */
+	function expandReplacement(replacement: string, match: string, groups: (string | undefined)[]): string {
+		return replacement.replace(/\$(\$|&|\d{1,2})/g, (_, token: string) => {
+			if (token === "$") return "$";
+			if (token === "&") return match;
+			return groups[parseInt(token, 10) - 1] ?? "";
+		});
+	}
+
 	/** Replace every match in one undoable change. Returns the count replaced. */
 	export function replaceAllMatches(o: SearchOptions, replacement: string): number {
 		const v = view;
@@ -369,9 +416,21 @@
 		const matches = text.match(re);
 		const count = matches ? matches.length : 0;
 		if (!count) return 0;
-		// In regex mode keep $1/$& expansion; otherwise insert the literal text.
-		const repl = o.regexp ? replacement : replacement.replace(/\$/g, "$$$$");
-		const next = text.replace(re, repl);
+
+		let next: string;
+		if (o.preserveCase) {
+			// A function replacer so each hit can be recased to match its own text.
+			next = text.replace(re, (m: string, ...args: unknown[]) => {
+				const groups = args.slice(0, -2) as (string | undefined)[];
+				const expanded = o.regexp ? expandReplacement(replacement, m, groups) : replacement;
+				return applyCase(m, expanded);
+			});
+		} else {
+			// In regex mode keep $1/$& expansion; otherwise insert the literal text.
+			const repl = o.regexp ? replacement : replacement.replace(/\$/g, "$$$$");
+			next = text.replace(re, repl);
+		}
+
 		v.dispatch({
 			changes: { from: 0, to: v.state.doc.length, insert: next },
 			selection: { anchor: 0 },

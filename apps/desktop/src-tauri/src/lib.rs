@@ -88,7 +88,17 @@ pub fn run() {
             git::git_is_repo,
             git::git_init,
             git::git_head,
+            git::git_status,
+            git::git_stage,
+            git::git_unstage,
+            git::git_diff,
+            git::git_commit,
             git::git_log,
+            git::git_clone,
+            git::git_remotes,
+            git::git_fetch,
+            git::git_pull,
+            git::git_push,
             take_launch_path
         ])
         .run(tauri::generate_context!())

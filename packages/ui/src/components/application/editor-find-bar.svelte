@@ -5,11 +5,13 @@
 		caseSensitive?: boolean;
 		wholeWord?: boolean;
 		regexp?: boolean;
+		preserveCase?: boolean;
 	};
 </script>
 
 <script lang="ts">
 	import { IconChevronDown, IconChevronRight, IconChevronUp, IconReplace, IconX } from '@tabler/icons-svelte';
+	import { SEARCH_BTN, SEARCH_COUNT, SEARCH_INPUT, searchPill } from './search-ui';
 
 	/**
 	 * EditorFindBar — a sticky find/replace bar that docks at the bottom of the
@@ -46,6 +48,7 @@
 	let matchCase = $state(initial?.caseSensitive ?? false);
 	let wholeWord = $state(initial?.wholeWord ?? false);
 	let useRegex = $state(initial?.regexp ?? false);
+	let preserveCase = $state(initial?.preserveCase ?? false);
 	let showReplace = $state(false);
 	let findInputEl = $state<HTMLInputElement>();
 
@@ -55,7 +58,7 @@
 	}
 
 	function emit() {
-		onsearch?.({ query, replace, caseSensitive: matchCase, wholeWord, regexp: useRegex });
+		onsearch?.({ query, replace, caseSensitive: matchCase, wholeWord, regexp: useRegex, preserveCase });
 	}
 
 	const toggles = $derived([
@@ -83,7 +86,7 @@
 >
 	<!-- Expand/collapse the replace row (VS Code parity). -->
 	<button
-		class="text-muted-foreground hover:bg-muted hover:text-foreground mt-0.5 grid size-7 shrink-0 place-items-center rounded transition-colors"
+		class="{SEARCH_BTN} mt-0.5 shrink-0"
 		title={showReplace ? 'Hide replace' : 'Toggle replace'}
 		aria-label="Toggle replace"
 		aria-expanded={showReplace}
@@ -101,7 +104,7 @@
 					bind:value={query}
 					oninput={emit}
 					onkeydown={onFindKeydown}
-					class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-7 w-full rounded border py-1 pr-[4.75rem] pl-2 text-[13px] outline-none transition-[box-shadow,border-color] focus-visible:ring-1"
+					class="{SEARCH_INPUT} w-full pr-[4.75rem]"
 					placeholder="Find"
 					aria-label="Find"
 					spellcheck="false"
@@ -109,9 +112,7 @@
 				<div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
 					{#each toggles as opt (opt.key)}
 						<button
-							class="grid size-[18px] place-items-center rounded font-mono text-[10px] leading-none transition-colors {opt.on
-								? 'bg-brand-subtle text-brand'
-								: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+							class={searchPill(opt.on)}
 							title={opt.title}
 							aria-label={opt.title}
 							aria-pressed={opt.on}
@@ -123,7 +124,7 @@
 				</div>
 			</div>
 
-			<span class="text-muted-foreground/70 w-20 shrink-0 text-center text-xs tabular-nums">
+			<span class="{SEARCH_COUNT} w-20 shrink-0 text-center">
 				{#if query && resultCount}
 					{activeIndex + 1} of {resultCount}
 				{:else if query}
@@ -132,7 +133,7 @@
 			</span>
 
 			<button
-				class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-7 shrink-0 place-items-center rounded transition-colors disabled:opacity-40"
+				class="{SEARCH_BTN} shrink-0"
 				title="Previous match (Shift+Enter)"
 				aria-label="Previous match"
 				disabled={!resultCount}
@@ -141,7 +142,7 @@
 				<IconChevronUp size={15} />
 			</button>
 			<button
-				class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-7 shrink-0 place-items-center rounded transition-colors disabled:opacity-40"
+				class="{SEARCH_BTN} shrink-0"
 				title="Next match (Enter)"
 				aria-label="Next match"
 				disabled={!resultCount}
@@ -150,7 +151,7 @@
 				<IconChevronDown size={15} />
 			</button>
 			<button
-				class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-7 shrink-0 place-items-center rounded transition-colors"
+				class="{SEARCH_BTN} shrink-0"
 				title="Close (Esc)"
 				aria-label="Close find"
 				onclick={() => onclose?.()}
@@ -165,14 +166,28 @@
 				<div class="relative min-w-0 flex-1">
 					<input
 						bind:value={replace}
-						class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-7 w-full rounded border py-1 pr-2 pl-2 text-[13px] outline-none transition-[box-shadow,border-color] focus-visible:ring-1"
+						class="{SEARCH_INPUT} w-full pr-7"
 						placeholder={useRegex ? 'Replace ($1, $&…)' : 'Replace'}
 						aria-label="Replace with"
 						spellcheck="false"
 					/>
+					<div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
+						<button
+							class={searchPill(preserveCase)}
+							title="Preserve case"
+							aria-label="Preserve case"
+							aria-pressed={preserveCase}
+							onclick={() => {
+								preserveCase = !preserveCase;
+								emit();
+							}}
+						>
+							AB
+						</button>
+					</div>
 				</div>
 				<button
-					class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-7 shrink-0 place-items-center rounded transition-colors disabled:opacity-40"
+					class="{SEARCH_BTN} shrink-0"
 					title="Replace next match"
 					aria-label="Replace next match"
 					disabled={!resultCount}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { IconChevronUp, IconChevronDown, IconX } from '@tabler/icons-svelte';
+	import { SEARCH_BTN, SEARCH_COUNT, SEARCH_INPUT, searchPill } from './search-ui';
 	// PDF.js layer styles (canvas/text/annotation positioning + selection). This is
 	// the *component* stylesheet only — NOT the full pdf.js viewer app, so there is
 	// no browser PDF toolbar/chrome. We re-theme the bits we care about below.
@@ -369,57 +370,62 @@
 
 		{#if findOpen}
 			<div
-				class="border-border bg-card absolute top-3 right-3 z-20 flex items-center gap-1 rounded-md border p-1 shadow-md"
+				class="border-border bg-card shadow-craft-lg absolute top-3 right-3 z-20 flex items-center gap-1 rounded-lg border p-1.5"
 				role="search"
 			>
-				<input
-					bind:this={findInputEl}
-					bind:value={findQuery}
-					oninput={onFindInput}
-					onkeydown={onFindKeydown}
-					class="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-7 w-40 rounded border px-2 text-sm outline-none focus-visible:ring-2"
-					placeholder="Find in PDF"
-					aria-label="Find in PDF"
-					spellcheck="false"
-				/>
-				<button
-					class="grid size-6 place-items-center rounded font-mono text-[11px] leading-none transition-colors {findCaseSensitive
-						? 'bg-brand-subtle text-brand'
-						: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-					title="Match case"
-					aria-pressed={findCaseSensitive}
-					onclick={() => {
-						findCaseSensitive = !findCaseSensitive;
-						onFindInput();
-					}}
-				>
-					Aa
-				</button>
-				<span class="text-muted-foreground/70 w-14 text-center text-xs tabular-nums">
-					{findQuery ? `${findCurrent}/${findTotal}` : ''}
+				<!-- Find field with the Aa toggle inside it (matches the editor find bar). -->
+				<div class="relative">
+					<input
+						bind:this={findInputEl}
+						bind:value={findQuery}
+						oninput={onFindInput}
+						onkeydown={onFindKeydown}
+						class="{SEARCH_INPUT} w-44 pr-7"
+						placeholder="Find in PDF"
+						aria-label="Find in PDF"
+						spellcheck="false"
+					/>
+					<div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
+						<button
+							class={searchPill(findCaseSensitive)}
+							title="Match case"
+							aria-label="Match case"
+							aria-pressed={findCaseSensitive}
+							onclick={() => {
+								findCaseSensitive = !findCaseSensitive;
+								onFindInput();
+							}}
+						>
+							Aa
+						</button>
+					</div>
+				</div>
+				<span class="{SEARCH_COUNT} w-16 text-center">
+					{#if findQuery && findTotal}
+						{findCurrent} of {findTotal}
+					{:else if findQuery}
+						No results
+					{/if}
 				</span>
 				<button
-					class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
-					title="Previous (Shift+Enter)"
+					class={SEARCH_BTN}
+					title="Previous match (Shift+Enter)"
 					aria-label="Previous match"
+					disabled={!findTotal}
 					onclick={findPrev}
 				>
 					<IconChevronUp size={15} />
 				</button>
 				<button
-					class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
-					title="Next (Enter)"
+					class={SEARCH_BTN}
+					title="Next match (Enter)"
 					aria-label="Next match"
+					disabled={!findTotal}
 					onclick={findNext}
 				>
 					<IconChevronDown size={15} />
 				</button>
-				<button
-					class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
-					title="Close (Esc)"
-					aria-label="Close find"
-					onclick={closeFind}
-				>
+				<button class={SEARCH_BTN} title="Close (Esc)" aria-label="Close find" onclick={closeFind}>
 					<IconX size={15} />
 				</button>
 			</div>
