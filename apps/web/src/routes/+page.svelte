@@ -22,7 +22,6 @@
 		IconSparkles,
 		IconGitBranch,
 		IconBrandDropbox,
-		IconBrandGoogleDrive,
 		IconShare
 	} from '@tabler/icons-svelte';
 
@@ -213,8 +212,6 @@
 			a: 'Yes. The editor and the renderer both run on your machine, so a flaky connection or no connection at all does not stop you.'
 		}
 	];
-
-	const repo = 'https://github.com/kanakkholwal/glyph';
 </script>
 
 <svelte:head>

@@ -54,12 +54,14 @@
 					<ul class="mt-4 flex flex-col gap-3">
 						{#each g.links as l (l.label)}
 							<li>
+								<!-- eslint-disable svelte/no-navigation-without-resolve -- href is either a resolve()'d internal link or an external URL -->
 								<a
 									class="text-muted-foreground hover:text-foreground text-sm transition-colors"
 									href={l.href}
 									target={l.external ? '_blank' : undefined}
 									rel={l.external ? 'noreferrer' : undefined}>{l.label}</a
 								>
+								<!-- eslint-enable svelte/no-navigation-without-resolve -->
 							</li>
 						{/each}
 					</ul>

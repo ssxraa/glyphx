@@ -92,6 +92,29 @@
 		return 'text-muted-foreground/80';
 	}
 
+	// Remotes
+	let remotes = $state<{ name: string; url: string }[]>([]);
+	let token = $state('');
+	let showToken = $state(false);
+	let remoteMsg = $state<string | undefined>(undefined);
+	const originUrl = $derived(remotes.find((r) => r.name === 'origin')?.url);
+	const hasRemote = $derived(!!originUrl);
+
+	/** Origin URL with the access token injected for HTTPS auth (if entered). */
+	function authedUrl(): string | undefined {
+		if (!originUrl) return undefined;
+		const t = token.trim();
+		if (!t) return originUrl;
+		try {
+			const u = new URL(originUrl);
+			u.username = 'x-access-token';
+			u.password = t;
+			return u.toString();
+		} catch {
+			return originUrl;
+		}
+	}
+
 	const staged = $derived(changes.filter((c) => c.staged));
 	const unstaged = $derived(changes.filter((c) => !c.staged));
 	const canCommit = $derived(
@@ -116,6 +139,11 @@
 				git.status(root),
 				git.log(root, 30)
 			]);
+			try {
+				remotes = await git.remotes(root);
+			} catch {
+				remotes = [];
+			}
 		} catch (e) {
 			error = String(e);
 		} finally {
@@ -154,6 +182,23 @@
 			message = '';
 		});
 	}
+
+	const doFetch = () =>
+		run(async () => {
+			remoteMsg = undefined;
+			await git!.fetch(root!, authedUrl());
+			remoteMsg = 'Fetched.';
+		});
+	const doPull = () =>
+		run(async () => {
+			remoteMsg = undefined;
+			remoteMsg = (await git!.pull(root!, authedUrl())) || 'Already up to date.';
+		});
+	const doPush = () =>
+		run(async () => {
+			remoteMsg = undefined;
+			remoteMsg = (await git!.push(root!, authedUrl(), head?.branch ?? undefined)) || 'Pushed.';
+		});
 
 	const STATUS_LABEL: Record<string, string> = {
 		modified: 'M',
@@ -314,6 +359,41 @@
 				{/each}
 			{/if}
 		</div>
+
+		<!-- Remote -->
+		{#if hasRemote}
+			<div class="border-border/60 mt-1 flex flex-col gap-1 border-t pt-1.5">
+				<div class="flex items-center gap-1 px-0.5">
+					<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+						Remote
+					</span>
+					<button
+						class="text-muted-foreground hover:text-foreground ml-auto text-[10px]"
+						onclick={() => (showToken = !showToken)}
+					>
+						{showToken ? 'Hide token' : 'Token'}
+					</button>
+				</div>
+				{#if showToken}
+					<input
+						type="password"
+						bind:value={token}
+						placeholder="Access token (for private repos)"
+						class="border-border bg-background focus:ring-brand/40 rounded border px-2 py-1 text-xs outline-none focus:ring-2"
+					/>
+				{/if}
+				<div class="flex gap-1.5">
+					<Button variant="outline" size="xs" disabled={busy} onclick={doFetch}>Fetch</Button>
+					<Button variant="outline" size="xs" disabled={busy} onclick={doPull}>Pull</Button>
+					<Button variant="outline" size="xs" disabled={busy} onclick={doPush}>Push</Button>
+				</div>
+				{#if remoteMsg}
+					<p class="text-muted-foreground/80 px-0.5 text-[11px] leading-snug break-words">
+						{remoteMsg}
+					</p>
+				{/if}
+			</div>
+		{/if}
 
 		<!-- History -->
 		{#if commits.length}

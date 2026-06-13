@@ -19,7 +19,7 @@
 	} from '@tabler/icons-svelte';
 
 	const repo = 'https://github.com/kanakkholwal/glyph';
-	const releases = `${repo}/releases`;
+	const releases = 'https://github.com/kanakkholwal/glyph/releases';
 
 	type OS = 'mac' | 'windows' | 'linux' | null;
 	let detected = $state<OS>(null);

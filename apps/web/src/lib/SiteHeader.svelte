@@ -24,6 +24,7 @@
 
 		<nav class="text-muted-foreground ml-3 hidden items-center gap-7 text-sm font-medium lg:flex">
 			{#each links as l (l.href)}
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is a resolve()'d base plus a section hash -->
 				<a class="hover:text-foreground relative transition-colors" href={l.href}>{l.label}</a>
 			{/each}
 		</nav>
@@ -66,11 +67,13 @@
 		<nav class="border-hairline bg-canvas border-t px-5 py-3 lg:hidden">
 			<div class="mx-auto flex max-w-[1140px] flex-col">
 				{#each links as l (l.href)}
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- href is a resolve()'d base plus a section hash -->
 					<a
 						class="text-foreground hover:bg-muted -mx-2 rounded-md px-2 py-2.5 text-sm font-medium transition-colors"
 						href={l.href}
 						onclick={() => (menuOpen = false)}>{l.label}</a
 					>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				{/each}
 				<a
 					class="text-foreground hover:bg-muted -mx-2 rounded-md px-2 py-2.5 text-sm font-medium transition-colors"
