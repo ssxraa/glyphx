@@ -12,5 +12,6 @@ export {
 	type EngineVersion,
 	type CacheInfo,
 	type PrefetchResult,
+	type SystemTexInfo,
 } from "./engine-settings.svelte";
 export type { ProjectHost, ProjectFile } from "./project";

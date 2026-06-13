@@ -22,10 +22,12 @@ const darcula = {
 	caret: "#bbbbbb",
 	selection: "#214283",
 	selectionMatch: "#32593d",
-	gutterBg: "#313335",
-	gutterFg: "#606366",
-	gutterActiveFg: "#a4a3a3",
-	lineHighlight: "#323232",
+	// Gutter blends into the editor surface; the current line number pops in the
+	// brand accent, and the active line gets a subtle neutral lift.
+	gutterBg: "#2b2b2b",
+	gutterFg: "#646b75",
+	gutterActiveFg: "#34d399",
+	lineHighlight: "rgba(255, 255, 255, 0.055)",
 	// syntax
 	keyword: "#cc7832",
 	comment: "#808080",
@@ -106,10 +108,12 @@ const light = {
 	caret: "#000000",
 	selection: "#a6d2ff",
 	selectionMatch: "#cce8ff",
+	// Neutral (cool) active-line tint to match Glyph's near-white surface — not
+	// the warm cream of stock IntelliJ — with the current line number in accent.
 	gutterBg: "#ffffff",
-	gutterFg: "#999999",
-	gutterActiveFg: "#000000",
-	lineHighlight: "#fcfaf2",
+	gutterFg: "#9b9ba3",
+	gutterActiveFg: "#0d9373",
+	lineHighlight: "rgba(10, 10, 12, 0.04)",
 	// syntax
 	keyword: "#0033b3",
 	comment: "#8c8c8c",

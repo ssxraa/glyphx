@@ -82,7 +82,7 @@ pub async fn prefetch_packages(app: tauri::AppHandle) -> Result<CompileResult, S
 \usepackage[hidelinks]{hyperref}
 \usepackage[english]{babel}
 \begin{document}Warming the package cache.\end{document}";
-    compile_latex(app, WARM.to_string(), Some(false)).await
+    compile_latex(app, WARM.to_string(), Some(false), None, None).await
 }
 
 /// Read and gunzip `<stem>.synctex.gz` from the output dir, if present.
@@ -201,26 +201,56 @@ fn run_tectonic(
     };
 
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    assemble_result(outdir, &stem, &stderr, &output.status, |tex_log_empty| {
+        // No TeX log written ⇒ the engine itself crashed (rather than a normal
+        // LaTeX error). Most often an OpenType icon font (e.g. fontawesome5) on
+        // the stable engine — the nightly build fixes it.
+        if tex_log_empty {
+            format!(
+                "The LaTeX engine exited unexpectedly (code {:?}) without producing a log — \
+                 a package likely crashed it (often an icon font such as fontawesome5 on the \
+                 stable engine). Try the Nightly engine, or switch to System TeX, in \
+                 Settings → Engine.",
+                output.status.code()
+            )
+        } else {
+            "LaTeX compilation failed — no PDF was produced. See the Problems panel.".to_string()
+        }
+    })
+}
+
+/// Assemble a [`CompileResult`] from a finished engine run by reading the PDF,
+/// TeX log and SyncTeX out of `outdir`. Shared by every engine.
+///
+/// We prefer emitting whatever PDF was produced: with `continue-on-errors`
+/// (Tectonic) / `-f` (latexmk) the engine renders a best-effort PDF for
+/// recoverable errors and still exits non-zero, so a present PDF means "show it"
+/// — the errors live in the log and surface in the Problems panel, like Overleaf.
+/// `no_pdf` builds the failure message when no PDF exists; it's told whether the
+/// TeX log was empty (engine crashed before writing one).
+fn assemble_result(
+    outdir: &std::path::Path,
+    stem: &str,
+    stderr: &str,
+    status: &std::process::ExitStatus,
+    no_pdf: impl Fn(bool) -> String,
+) -> CompileResult {
     // The TeX engine log (`<stem>.log`) carries the structured `! error` blocks,
     // `l.<n>` line numbers and `LaTeX Warning ... on input line <n>` that the
-    // frontend parses. Combine it with Tectonic's concise stderr summary.
+    // frontend parses. Combine it with the engine's concise stderr summary.
     let tex_log = std::fs::read_to_string(outdir.join(format!("{stem}.log"))).unwrap_or_default();
     let log = if tex_log.is_empty() {
-        stderr.clone()
+        stderr.to_string()
     } else {
         format!("{}\n{}", stderr.trim_end(), tex_log)
     };
 
-    // Prefer emitting whatever PDF was produced. With `continue-on-errors`,
-    // Tectonic renders a best-effort PDF for recoverable errors (and still exits
-    // non-zero), so a present PDF means "show it" — the errors live in the log
-    // and surface in the Problems panel, exactly like Overleaf.
     let pdf_path = outdir.join(format!("{stem}.pdf"));
     if let Ok(bytes) = std::fs::read(&pdf_path) {
-        if !output.status.success() {
+        if !status.success() {
             eprintln!(
                 "[glyph] compiled with errors (exit {:?}) — showing best-effort PDF",
-                output.status.code()
+                status.code()
             );
         }
         return CompileResult {
@@ -228,34 +258,138 @@ fn run_tectonic(
             pdf_base64: Some(general_purpose::STANDARD.encode(bytes)),
             log,
             message: None,
-            synctex: read_synctex(outdir, &stem),
+            synctex: read_synctex(outdir, stem),
         };
     }
 
     // No PDF at all — a genuine failure. Mirror it to the dev terminal too.
     eprintln!(
         "[glyph] LaTeX compilation failed (exit {:?}):\n{}",
-        output.status.code(),
+        status.code(),
         if stderr.trim().is_empty() {
             tex_log.as_str()
         } else {
             stderr.trim()
         }
     );
-    // No TeX log written ⇒ the engine itself crashed (rather than a normal
-    // LaTeX error). Most often an OpenType icon font (e.g. fontawesome5) on
-    // the stable engine — the nightly build fixes it.
-    let message = if tex_log.trim().is_empty() {
-        format!(
-            "The LaTeX engine exited unexpectedly (code {:?}) without producing a log — \
-             a package likely crashed it (often an icon font such as fontawesome5 on the \
-             stable engine). Try the Nightly engine in Settings → Engine.",
-            output.status.code()
-        )
-    } else {
-        "LaTeX compilation failed — no PDF was produced. See the Problems panel.".to_string()
+    CompileResult::failure(no_pdf(tex_log.trim().is_empty()), log)
+}
+
+/// latexmk's engine-selection flag for a given TeX program.
+fn latexmk_engine_flag(program: &str) -> &'static str {
+    match program {
+        "xelatex" => "-pdfxe",
+        "lualatex" => "-pdflua",
+        _ => "-pdf", // pdflatex
+    }
+}
+
+/// Run a compile on `main_tex` via a local System TeX install, driven by
+/// `latexmk` (which handles bibtex + the multi-pass rerun loop automatically).
+/// `program` selects the engine: `pdflatex` (default), `xelatex`, or `lualatex`.
+///
+/// Unlike Tectonic (XeTeX-only), pdfLaTeX / LuaLaTeX use a different graphics
+/// pipeline that tolerates images Tectonic rejects (e.g. JPEGs with 0-DPI
+/// metadata → "Division by 0"), so this is the compatibility fallback.
+fn run_latexmk(
+    main_tex: &std::path::Path,
+    outdir: &std::path::Path,
+    program: &str,
+    shell_escape: bool,
+) -> CompileResult {
+    let stem = main_tex
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "main".to_string());
+
+    let mut cmd = Command::new("latexmk");
+    cmd.arg(latexmk_engine_flag(program))
+        // `-f` (force) keeps building through errors so we still get a
+        // best-effort PDF; nonstopmode stops the engine from prompting.
+        .arg("-f")
+        .arg("-interaction=nonstopmode")
+        .arg("-file-line-error")
+        .arg("-synctex=1")
+        .arg(format!("-outdir={}", outdir.to_string_lossy()));
+    if shell_escape {
+        cmd.arg("-shell-escape");
+    }
+    // Run inside the project folder so `\input`, `\includegraphics`,
+    // `\bibliography` resolve relative to the main file.
+    if let Some(parent) = main_tex.parent() {
+        cmd.current_dir(parent);
+    }
+    cmd.arg(main_tex);
+
+    let output = match cmd.output() {
+        Ok(o) => o,
+        Err(e) => {
+            return CompileResult::failure(
+                format!(
+                    "Could not run latexmk — install a TeX distribution (TeX Live or MiKTeX) \
+                     and make sure it's on your PATH, then pick the version in Settings → \
+                     Engine. Underlying error: {e}"
+                ),
+                String::new(),
+            );
+        }
     };
-    CompileResult::failure(message, log)
+
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    assemble_result(outdir, &stem, &stderr, &output.status, |_| {
+        "System TeX compilation failed — no PDF was produced. See the Problems panel.".to_string()
+    })
+}
+
+/// Dispatch to the engine the frontend selected: bundled Tectonic, or a local
+/// System TeX install via latexmk.
+fn run_engine(
+    app: &tauri::AppHandle,
+    main_tex: &std::path::Path,
+    outdir: &std::path::Path,
+    engine: &str,
+    program: &str,
+    shell_escape: bool,
+) -> CompileResult {
+    if engine == "system" {
+        run_latexmk(main_tex, outdir, program, shell_escape)
+    } else {
+        run_tectonic(app, main_tex, outdir, shell_escape)
+    }
+}
+
+/// What System TeX tooling is available on PATH (for Settings → Engine).
+#[derive(Serialize)]
+pub struct SystemTexInfo {
+    pub latexmk: bool,
+    pub pdflatex: bool,
+    pub xelatex: bool,
+    pub lualatex: bool,
+    /// First line of `latexmk --version`, if present (e.g. the distro/version).
+    pub version: Option<String>,
+}
+
+/// Probe a binary by running `<name> --version`; returns its first output line.
+fn probe_bin(name: &str) -> Option<String> {
+    let out = Command::new(name).arg("--version").output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    Some(stdout.lines().next().unwrap_or_default().trim().to_string())
+}
+
+/// Detect a local TeX installation so the UI can offer / gate System TeX.
+#[tauri::command]
+pub async fn detect_system_tex() -> SystemTexInfo {
+    let version = probe_bin("latexmk");
+    SystemTexInfo {
+        latexmk: version.is_some(),
+        pdflatex: probe_bin("pdflatex").is_some(),
+        xelatex: probe_bin("xelatex").is_some(),
+        lualatex: probe_bin("lualatex").is_some(),
+        version,
+    }
 }
 
 /// Compile a standalone LaTeX `source` string into a PDF (no project on disk).
@@ -265,14 +399,18 @@ pub async fn compile_latex(
     app: tauri::AppHandle,
     source: String,
     shell_escape: Option<bool>,
+    engine: Option<String>,
+    tex_program: Option<String>,
 ) -> Result<CompileResult, String> {
     let dir = tempfile::tempdir().map_err(|e| e.to_string())?;
     let tex_path = dir.path().join("main.tex");
     std::fs::write(&tex_path, &source).map_err(|e| e.to_string())?;
-    Ok(run_tectonic(
+    Ok(run_engine(
         &app,
         &tex_path,
         dir.path(),
+        engine.as_deref().unwrap_or("tectonic"),
+        tex_program.as_deref().unwrap_or("pdflatex"),
         shell_escape.unwrap_or(false),
     ))
 }
@@ -287,6 +425,8 @@ pub async fn compile_project(
     root: String,
     main: String,
     shell_escape: Option<bool>,
+    engine: Option<String>,
+    tex_program: Option<String>,
 ) -> Result<CompileResult, String> {
     let root = PathBuf::from(&root);
     let main_path = {
@@ -304,10 +444,27 @@ pub async fn compile_project(
         ));
     }
     let out = tempfile::tempdir().map_err(|e| e.to_string())?;
-    Ok(run_tectonic(
+    Ok(run_engine(
         &app,
         &main_path,
         out.path(),
+        engine.as_deref().unwrap_or("tectonic"),
+        tex_program.as_deref().unwrap_or("pdflatex"),
         shell_escape.unwrap_or(false),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn latexmk_flag_maps_each_program() {
+        assert_eq!(latexmk_engine_flag("pdflatex"), "-pdf");
+        assert_eq!(latexmk_engine_flag("xelatex"), "-pdfxe");
+        assert_eq!(latexmk_engine_flag("lualatex"), "-pdflua");
+        // Unknown / empty falls back to pdfLaTeX.
+        assert_eq!(latexmk_engine_flag("something-else"), "-pdf");
+        assert_eq!(latexmk_engine_flag(""), "-pdf");
+    }
 }

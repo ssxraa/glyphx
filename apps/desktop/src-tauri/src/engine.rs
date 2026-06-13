@@ -145,6 +145,35 @@ pub fn active_engine_path(app: &tauri::AppHandle) -> Option<PathBuf> {
     None
 }
 
+/// Map a GitHub release tag to a user-facing engine version, or `None` to skip
+/// it. `continuous` is the rolling nightly (newer xetex-layout — fixes the
+/// fontawesome5 / icon-font crash); stable CLI releases are tagged `tectonic@X`.
+fn tag_to_version(tag: &str) -> Option<String> {
+    if tag == "continuous" {
+        Some("nightly".to_string())
+    } else {
+        tag.strip_prefix("tectonic@").map(|v| v.to_string())
+    }
+}
+
+/// Inverse of [`tag_to_version`] — the release tag to download for a version.
+fn version_to_tag(version: &str) -> String {
+    if version == "nightly" {
+        "continuous".to_string()
+    } else {
+        format!("tectonic@{version}")
+    }
+}
+
+/// Ordering for the version list: nightly first, then newest stable descending.
+fn version_order(a: &str, b: &str) -> std::cmp::Ordering {
+    match (a == "nightly", b == "nightly") {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => b.cmp(a),
+    }
+}
+
 /// Whether a release asset matches the current platform.
 fn asset_matches(name: &str) -> bool {
     let target: Option<(&str, &str)> = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
@@ -202,14 +231,7 @@ pub async fn list_tectonic_versions(app: tauri::AppHandle) -> Result<Vec<EngineV
 
     let mut out = Vec::new();
     for rel in releases {
-        // Stable CLI releases are tagged `tectonic@0.16.9`; the rolling
-        // `continuous` build (newer xetex-layout — fixes the fontawesome5 / icon
-        // font crash) is exposed as the "nightly" version.
-        let version = if rel.tag_name == "continuous" {
-            "nightly".to_string()
-        } else if let Some(v) = rel.tag_name.strip_prefix("tectonic@") {
-            v.to_string()
-        } else {
+        let Some(version) = tag_to_version(&rel.tag_name) else {
             continue;
         };
         if !rel.assets.iter().any(|a| asset_matches(&a.name)) {
@@ -222,12 +244,7 @@ pub async fn list_tectonic_versions(app: tauri::AppHandle) -> Result<Vec<EngineV
             tag: rel.tag_name,
         });
     }
-    // Nightly first, then newest stable versions.
-    out.sort_by(|a, b| match (a.version == "nightly", b.version == "nightly") {
-        (true, false) => std::cmp::Ordering::Less,
-        (false, true) => std::cmp::Ordering::Greater,
-        _ => b.version.cmp(&a.version),
-    });
+    out.sort_by(|a, b| version_order(&a.version, &b.version));
     Ok(out)
 }
 
@@ -236,11 +253,7 @@ pub async fn list_tectonic_versions(app: tauri::AppHandle) -> Result<Vec<EngineV
 pub async fn download_tectonic(app: tauri::AppHandle, version: String) -> Result<String, String> {
     let dir = engines_dir(&app).ok_or("no app data directory")?;
     let releases = fetch_releases().await?;
-    let tag = if version == "nightly" {
-        "continuous".to_string()
-    } else {
-        format!("tectonic@{version}")
-    };
+    let tag = version_to_tag(&version);
 
     let rel = releases
         .into_iter()
@@ -349,4 +362,66 @@ fn set_executable(path: &Path) -> Result<(), String> {
 #[cfg(not(unix))]
 fn set_executable(_path: &Path) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tag_and_version_map_both_ways() {
+        assert_eq!(tag_to_version("continuous").as_deref(), Some("nightly"));
+        assert_eq!(tag_to_version("tectonic@0.16.9").as_deref(), Some("0.16.9"));
+        assert_eq!(tag_to_version("tectonic@1.0.0").as_deref(), Some("1.0.0"));
+        // Non-Tectonic / unrecognised tags are skipped.
+        assert_eq!(tag_to_version("v1.2.3"), None);
+        assert_eq!(tag_to_version("untagged-abc"), None);
+
+        assert_eq!(version_to_tag("nightly"), "continuous");
+        assert_eq!(version_to_tag("0.16.9"), "tectonic@0.16.9");
+    }
+
+    #[test]
+    fn versions_sort_nightly_first_then_newest() {
+        let mut v = vec!["0.15.0", "nightly", "0.16.9", "0.4.1", "0.16.10"];
+        v.sort_by(|a, b| version_order(a, b));
+        assert_eq!(v, vec!["nightly", "0.4.1", "0.16.9", "0.16.10", "0.15.0"]);
+    }
+
+    #[test]
+    fn installed_versions_parses_only_engine_binaries() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        std::fs::write(installed_path(p, "0.16.9"), b"x").unwrap();
+        std::fs::write(installed_path(p, "nightly"), b"x").unwrap();
+        // Noise that must be ignored.
+        std::fs::write(p.join("active.txt"), b"nightly").unwrap();
+        std::fs::write(p.join("notes.md"), b"x").unwrap();
+
+        let mut got = installed_versions(p);
+        got.sort();
+        assert_eq!(got, vec!["0.16.9".to_string(), "nightly".to_string()]);
+    }
+
+    #[test]
+    #[cfg(any(
+        all(target_os = "windows", target_arch = "x86_64"),
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(target_os = "macos", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64"),
+    ))]
+    fn asset_matches_host_platform() {
+        #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+        let name = "tectonic-0.16.9-x86_64-pc-windows-msvc.zip";
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let name = "tectonic-0.16.9-aarch64-apple-darwin.tar.gz";
+        #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+        let name = "tectonic-0.16.9-x86_64-apple-darwin.tar.gz";
+        #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+        let name = "tectonic-0.16.9-x86_64-unknown-linux-gnu.tar.gz";
+
+        assert!(asset_matches(name));
+        assert!(!asset_matches("tectonic-0.16.9-some-other-triple.zip"));
+        assert!(!asset_matches("tectonic-0.16.9.txt"));
+    }
 }

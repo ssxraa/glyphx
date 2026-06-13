@@ -1,5 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { CacheInfo, EngineManager, EngineVersion, PrefetchResult } from '@glyph/ui/application';
+import type {
+	CacheInfo,
+	EngineManager,
+	EngineVersion,
+	PrefetchResult,
+	SystemTexInfo
+} from '@glyph/ui/application';
 
 type RawCompileResult = { success: boolean; message: string | null };
 
@@ -14,6 +20,7 @@ export const engineManager: EngineManager = {
 	download: (version: string) => invoke<string>('download_tectonic', { version }),
 	setActive: (version: string) => invoke<void>('set_active_engine', { version }),
 	remove: (version: string) => invoke<void>('remove_tectonic', { version }),
+	detectSystem: () => invoke<SystemTexInfo>('detect_system_tex'),
 	cacheInfo: () => invoke<CacheInfo>('tectonic_cache_info'),
 	clearCache: () => invoke<void>('clear_tectonic_cache'),
 	prefetch: async (): Promise<PrefetchResult> => {

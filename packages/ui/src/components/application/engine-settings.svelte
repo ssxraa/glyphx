@@ -9,6 +9,15 @@
 	export type CacheInfo = { path: string; bytes: number };
 	export type PrefetchResult = { success: boolean; message?: string };
 
+	/** Which System TeX tooling is available on PATH. */
+	export type SystemTexInfo = {
+		latexmk: boolean;
+		pdflatex: boolean;
+		xelatex: boolean;
+		lualatex: boolean;
+		version?: string;
+	};
+
 	/** Provided by the host (desktop) — backed by Tauri commands. */
 	export type EngineManager = {
 		label: string;
@@ -17,6 +26,8 @@
 		setActive: (version: string) => Promise<void>;
 		/** Uninstall a downloaded version to reclaim disk (optional). */
 		remove?: (version: string) => Promise<void>;
+		/** Detect a local TeX install for the System TeX engine (optional). */
+		detectSystem?: () => Promise<SystemTexInfo>;
 		/** Managed package-cache controls (optional). */
 		cacheInfo?: () => Promise<CacheInfo>;
 		clearCache?: () => Promise<void>;
@@ -26,14 +37,79 @@
 
 <script lang="ts">
 	import { Button } from '@glyph/ui/button';
+	import { Segmented } from '@glyph/ui/segmented';
+	import {
+		settings,
+		TEX_PROGRAM_LABELS,
+		type EngineKind,
+		type TexProgram
+	} from '@glyph/ui/settings';
 	import { toast } from '@glyph/ui/sonner';
 
 	/**
-	 * EngineSettings — list / download / activate engine (Tectonic) versions from
-	 * GitHub releases, so the engine can be updated without rebuilding the app.
-	 * Also exposes the managed package cache (size / clear / pre-warm).
+	 * EngineSettings — pick the compile engine (bundled Tectonic or a local
+	 * System TeX install), list / download / activate / remove Tectonic versions
+	 * from GitHub releases (no app rebuild), and manage the package cache.
 	 */
 	let { engine }: { engine: EngineManager } = $props();
+
+	const kindOpts: { value: EngineKind; label: string }[] = [
+		{ value: 'tectonic', label: 'Tectonic' },
+		{ value: 'system', label: 'System TeX' }
+	];
+
+	// Detected local TeX tooling (for the System TeX engine).
+	let sysInfo = $state<SystemTexInfo | undefined>(undefined);
+	let detecting = $state(false);
+
+	async function detectSystem() {
+		if (!engine.detectSystem) return;
+		detecting = true;
+		try {
+			sysInfo = await engine.detectSystem();
+		} catch {
+			/* ignore — UI just shows "not detected" */
+		} finally {
+			detecting = false;
+		}
+	}
+
+	// Auto-detect the local TeX install the first time the System TeX view shows.
+	function autoDetect() {
+		if (!sysInfo && !detecting) detectSystem();
+	}
+
+	// Auto-fetch the Tectonic version list the first time that view shows.
+	function autoCheck() {
+		if (!loaded && !loading) refresh();
+	}
+
+	/**
+	 * Svelte action: run `callback` once, when `node` first enters the viewport.
+	 * Lets each engine view lazily load (versions / detection) on scroll-in
+	 * instead of requiring a manual click.
+	 */
+	function onVisible(node: HTMLElement, callback: () => void) {
+		const io = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) {
+					callback();
+					io.disconnect();
+				}
+			},
+			{ threshold: 0.01 }
+		);
+		io.observe(node);
+		return { destroy: () => io.disconnect() };
+	}
+
+	// Which TeX programs are available, for the program picker.
+	const programOpts = $derived(
+		(['pdflatex', 'xelatex', 'lualatex'] as TexProgram[])
+			.filter((p) => sysInfo?.[p])
+			.map((p) => ({ value: p, label: TEX_PROGRAM_LABELS[p] }))
+	);
+	const systemReady = $derived(!!sysInfo?.latexmk);
 
 	let versions = $state<EngineVersion[]>([]);
 	let loading = $state(false);
@@ -149,13 +225,70 @@
 	}
 </script>
 
-<div class="flex flex-col gap-2">
-	<div class="flex items-center justify-between">
+<div class="flex flex-col gap-3">
+	<!-- Which engine compiles: bundled Tectonic, or a local System TeX install. -->
+	<div class="flex flex-col gap-1.5">
+		<Segmented
+			options={kindOpts}
+			value={settings.engineKind}
+			onValueChange={(v) => (settings.engineKind = v as EngineKind)}
+			size="sm"
+			aria-label="Compile engine"
+		/>
+		<p class="text-muted-foreground text-[11px] leading-relaxed">
+			{#if settings.engineKind === 'system'}
+				Uses your local TeX install via latexmk (pdfLaTeX / XeLaTeX / LuaLaTeX). Best for
+				documents Tectonic can't render — e.g. images it rejects with “Division by 0”.
+			{:else}
+				Bundled, zero-install LaTeX (XeTeX). Downloads packages on demand. No TeX installation
+				required.
+			{/if}
+		</p>
+	</div>
+
+	{#if settings.engineKind === 'system'}
+		<!-- System TeX: detection + program picker. -->
+		<div class="flex flex-col gap-2" use:onVisible={autoDetect}>
+			{#if detecting}
+				<p class="text-muted-foreground text-xs">Looking for a TeX installation…</p>
+			{:else if systemReady}
+				<div class="flex items-center gap-2">
+					<span class="text-success text-[10px] font-semibold tracking-wide uppercase">Detected</span>
+					{#if sysInfo?.version}
+						<span class="text-muted-foreground/80 truncate text-xs">{sysInfo.version}</span>
+					{/if}
+				</div>
+				{#if programOpts.length}
+					<div class="flex flex-col gap-1">
+						<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+							TeX program
+						</span>
+						<Segmented
+							options={programOpts}
+							value={settings.texProgram}
+							onValueChange={(v) => (settings.texProgram = v as TexProgram)}
+							size="sm"
+							aria-label="TeX program"
+						/>
+					</div>
+				{/if}
+			{:else}
+				<div class="border-border text-muted-foreground rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
+					No TeX installation found on your PATH. Install <span class="text-foreground">TeX Live</span>
+					or <span class="text-foreground">MiKTeX</span> (both free, cross-platform), then re-check.
+					<Button variant="outline" size="xs" class="mt-2 self-start" onclick={detectSystem}>
+						Re-check
+					</Button>
+				</div>
+			{/if}
+		</div>
+	{:else}
+	<div class="flex items-center justify-between" use:onVisible={autoCheck}>
 		<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
 			{engine.label} engine
 		</span>
 		<Button variant="ghost" size="xs" onclick={refresh} disabled={loading}>
-			{loading ? 'Checking…' : 'Check versions'}
+			{loading ? 'Checking…' : 'Refresh'}
 		</Button>
 	</div>
 
@@ -163,9 +296,11 @@
 		<p class="text-destructive text-xs">{error}</p>
 	{/if}
 
-	{#if !loaded && !loading}
+	{#if loading}
+		<p class="text-muted-foreground text-xs">Checking available versions…</p>
+	{:else if !loaded}
 		<p class="text-muted-foreground text-xs">
-			Fetch available Tectonic versions to download or switch — no rebuild needed.
+			Available Tectonic versions — download or switch, no rebuild needed.
 		</p>
 	{/if}
 
@@ -257,5 +392,6 @@
 				{/if}
 			</div>
 		</div>
+	{/if}
 	{/if}
 </div>

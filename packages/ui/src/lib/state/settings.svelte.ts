@@ -17,6 +17,16 @@ export type Appearance = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 export type LatexGrammar = "legacy" | "lezer";
 export type EditorFont = "jetbrains" | "geist";
+/** Which compile engine to use. `tectonic` = bundled; `system` = local TeX install. */
+export type EngineKind = "tectonic" | "system";
+/** TeX program latexmk drives when {@link EngineKind} is `system`. */
+export type TexProgram = "pdflatex" | "xelatex" | "lualatex";
+
+export const TEX_PROGRAM_LABELS: Record<TexProgram, string> = {
+	pdflatex: "pdfLaTeX",
+	xelatex: "XeLaTeX",
+	lualatex: "LuaLaTeX",
+};
 
 /** Editor monospace font stacks (all self-hosted via @fontsource, offline-safe). */
 export const EDITOR_FONT_STACKS: Record<EditorFont, string> = {
@@ -42,6 +52,10 @@ export interface EditorSettings {
 	 * it lets a document run arbitrary system commands, so it's opt-in.
 	 */
 	shellEscape: boolean;
+	/** Compile engine: bundled Tectonic (XeTeX) or a local System TeX install. */
+	engineKind: EngineKind;
+	/** Which TeX program System TeX drives (via latexmk). */
+	texProgram: TexProgram;
 }
 
 export const EDITOR_DEFAULTS: EditorSettings = {
@@ -51,6 +65,8 @@ export const EDITOR_DEFAULTS: EditorSettings = {
 	lineWrapping: false,
 	autoCompile: true,
 	shellEscape: false,
+	engineKind: "tectonic",
+	texProgram: "pdflatex",
 };
 
 /** Debounce (ms) before an edit triggers an automatic recompile. */
@@ -182,6 +198,20 @@ class SettingsStore {
 	}
 	set shellEscape(value: boolean) {
 		this.patchEditor({ shellEscape: value });
+	}
+
+	get engineKind(): EngineKind {
+		return this.#editor.current.engineKind ?? "tectonic";
+	}
+	set engineKind(value: EngineKind) {
+		this.patchEditor({ engineKind: value });
+	}
+
+	get texProgram(): TexProgram {
+		return this.#editor.current.texProgram ?? "pdflatex";
+	}
+	set texProgram(value: TexProgram) {
+		this.patchEditor({ texProgram: value });
 	}
 }
 

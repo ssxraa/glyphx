@@ -67,6 +67,7 @@ pub fn run() {
             compile::compile_latex,
             compile::compile_project,
             compile::prefetch_packages,
+            compile::detect_system_tex,
             engine::list_tectonic_versions,
             engine::download_tectonic,
             engine::set_active_engine,

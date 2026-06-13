@@ -31,7 +31,9 @@ export async function compileLatex(source: string): Promise<CompileOutcome> {
 	try {
 		const res = await invoke<RawCompileResult>('compile_latex', {
 			source,
-			shellEscape: settings.shellEscape
+			shellEscape: settings.shellEscape,
+			engine: settings.engineKind,
+			texProgram: settings.texProgram
 		});
 		if (res.success && res.pdf_base64)
 			return { pdf: res.pdf_base64, log: res.log, synctex: res.synctex ?? undefined };
@@ -54,7 +56,9 @@ export async function compileProject(root: string, mainRel: string): Promise<Com
 		const res = await invoke<RawCompileResult>('compile_project', {
 			root,
 			main: mainRel,
-			shellEscape: settings.shellEscape
+			shellEscape: settings.shellEscape,
+			engine: settings.engineKind,
+			texProgram: settings.texProgram
 		});
 		if (res.success && res.pdf_base64)
 			return { pdf: res.pdf_base64, log: res.log, synctex: res.synctex ?? undefined };

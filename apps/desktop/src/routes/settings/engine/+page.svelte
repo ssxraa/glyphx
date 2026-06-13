@@ -8,13 +8,14 @@
 	<div>
 		<h2 class="text-lg font-medium tracking-tight">Engine</h2>
 		<p class="text-muted-foreground mt-1 text-sm">
-			Choose and update the LaTeX engine. Glyph ships with Tectonic — no install needed.
+			Choose how Glyph compiles. Bundled Tectonic needs no install; System TeX uses your local
+			TeX Live / MiKTeX for documents Tectonic can't render.
 		</p>
 	</div>
 
 	<SettingsField
-		label="Tectonic versions"
-		description="Pin a specific build, or switch to Nightly for newer icon-font support. Download or remove versions any time — no app rebuild required."
+		label="LaTeX engine"
+		description="Switch engines, pin a Tectonic build (or Nightly for newer icon-font support), or compile with your local TeX install. Changes apply to the next compile."
 	>
 		<EngineSettings engine={engineManager} />
 	</SettingsField>
