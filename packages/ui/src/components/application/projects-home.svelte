@@ -5,6 +5,13 @@
 
 <script lang="ts">
 	import { Button } from '@glyph/ui/button';
+	import {
+		DropdownMenu,
+		DropdownMenuContent,
+		DropdownMenuItem,
+		DropdownMenuSeparator,
+		DropdownMenuTrigger
+	} from '@glyph/ui/dropdown-menu';
 	import { Logo } from '@glyph/ui/logo';
 	import { projectViewTransitionName } from '@glyph/ui/projects';
 	import { ThemeToggle } from '@glyph/ui/theme-toggle';
@@ -16,6 +23,7 @@
 		IconPencil,
 		IconPlus,
 		IconSearch,
+		IconSettings,
 		IconTrash
 	} from '@tabler/icons-svelte';
 
@@ -34,7 +42,8 @@
 		onopen,
 		onrename,
 		onduplicate,
-		ondelete
+		ondelete,
+		onsettings
 	}: {
 		projects?: Project[];
 		oncreate?: () => void;
@@ -46,10 +55,11 @@
 		onrename?: (id: string, name: string) => void;
 		onduplicate?: (id: string) => void;
 		ondelete?: (id: string) => void;
+		/** Open the app settings page (desktop). */
+		onsettings?: () => void;
 	} = $props();
 
 	let query = $state('');
-	let menuFor = $state<string | null>(null);
 	let renaming = $state<string | null>(null);
 	let renameValue = $state('');
 
@@ -71,7 +81,6 @@
 	}
 
 	function startRename(p: Project) {
-		menuFor = null;
 		renaming = p.id;
 		renameValue = p.name;
 	}
@@ -91,12 +100,6 @@
 		});
 	}
 
-	$effect(() => {
-		if (menuFor === null) return;
-		const close = () => (menuFor = null);
-		window.addEventListener('click', close);
-		return () => window.removeEventListener('click', close);
-	});
 </script>
 
 <div class="bg-background text-foreground flex h-dvh flex-col overflow-hidden">
@@ -105,6 +108,17 @@
 		<Logo size={26} viewTransitionName="app-logo" class="text-base tracking-tight" />
 		<div class="ml-auto flex items-center gap-2">
 			<ThemeToggle size="icon-sm" />
+			{#if onsettings}
+				<Button
+					size="icon-sm"
+					variant="ghost"
+					title="Settings"
+					aria-label="Settings"
+					onclick={() => onsettings?.()}
+				>
+					<IconSettings size={16} />
+				</Button>
+			{/if}
 			{#if onimport}
 				<Button size="sm" variant="outline" onclick={() => onimport?.()}>
 					<IconFileImport size={15} />
@@ -175,7 +189,7 @@
 				>
 					<!-- New-project card -->
 					<button
-						class="group border-border hover:border-ring/50 hover:bg-muted/30 flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-xl border border-dashed transition-colors"
+						class="group border-border hover:border-ring/50 hover:bg-muted/30 flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-xl border border-dashed transition-[colors,transform,box-shadow] duration-200 ease-out hover:-translate-y-1 active:translate-y-0 active:scale-[0.99] motion-reduce:transform-none"
 						onclick={() => oncreate?.()}
 					>
 						<span
@@ -198,7 +212,7 @@
 								<!-- The "document" — a little page. Shares a view-transition-name
 								     with the editor surface so it morphs into the editor. -->
 								<div
-									class="bg-card border-border shadow-craft-sm group-hover:shadow-craft-md relative aspect-[4/5] overflow-hidden rounded-xl border transition-shadow"
+									class="bg-card border-border shadow-craft-sm group-hover:shadow-craft-md relative aspect-[4/5] overflow-hidden rounded-xl border transition-[transform,box-shadow] duration-200 ease-out group-hover:-translate-y-1 group-active:translate-y-0 group-active:scale-[0.985] motion-reduce:transform-none"
 									style:view-transition-name={projectViewTransitionName(p.id)}
 									style:view-transition-class="morph-surface"
 								>
@@ -250,59 +264,35 @@
 								</div>
 							</button>
 
-							<!-- per-card menu -->
+							<!-- per-card menu (native shadcn dropdown) -->
 							<div class="absolute top-2 left-2">
-								<button
-									class="bg-card/80 text-muted-foreground hover:text-foreground border-border grid size-7 place-items-center rounded-md border opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 {menuFor ===
-									p.id
-										? 'opacity-100'
-										: ''}"
-									title="Project actions"
-									aria-label="Project actions"
-									onclick={(e) => {
-										e.stopPropagation();
-										menuFor = menuFor === p.id ? null : p.id;
-									}}
-								>
-									<IconDotsVertical size={15} />
-								</button>
-								{#if menuFor === p.id}
-									<div
-										class="bg-popover border-border shadow-craft-floating absolute top-8 left-0 z-20 w-40 rounded-lg border p-1"
-										role="menu"
-									>
-										<button
-											class="hover:bg-muted flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors"
-											onclick={(e) => {
-												e.stopPropagation();
-												startRename(p);
-											}}
-										>
-											<IconPencil size={15} class="text-muted-foreground" /> Rename
-										</button>
-										<button
-											class="hover:bg-muted flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors"
-											onclick={(e) => {
-												e.stopPropagation();
-												menuFor = null;
-												onduplicate?.(p.id);
-											}}
-										>
-											<IconCopy size={15} class="text-muted-foreground" /> Duplicate
-										</button>
-										<div class="bg-border my-1 h-px"></div>
-										<button
-											class="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors"
-											onclick={(e) => {
-												e.stopPropagation();
-												menuFor = null;
-												ondelete?.(p.id);
-											}}
-										>
-											<IconTrash size={15} /> Delete
-										</button>
-									</div>
-								{/if}
+								<DropdownMenu>
+									<DropdownMenuTrigger>
+										{#snippet child({ props })}
+											<button
+												{...props}
+												class="bg-card/80 text-muted-foreground hover:text-foreground border-border grid size-7 place-items-center rounded-md border opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+												title="Project actions"
+												aria-label="Project actions"
+												onclick={(e) => e.stopPropagation()}
+											>
+												<IconDotsVertical size={15} />
+											</button>
+										{/snippet}
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="start" class="w-40">
+										<DropdownMenuItem onclick={() => startRename(p)}>
+											<IconPencil class="text-muted-foreground" /> Rename
+										</DropdownMenuItem>
+										<DropdownMenuItem onclick={() => onduplicate?.(p.id)}>
+											<IconCopy class="text-muted-foreground" /> Duplicate
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem variant="destructive" onclick={() => ondelete?.(p.id)}>
+											<IconTrash /> Delete
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</div>
 						</div>
 					{/each}

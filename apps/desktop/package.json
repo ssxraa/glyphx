@@ -18,6 +18,7 @@
 	},
 	"dependencies": {
 		"@glyph/ui": "workspace:*",
+		"@tabler/icons-svelte": "^3.44.0",
 		"@tauri-apps/api": "^2",
 		"@tauri-apps/plugin-dialog": "^2.7.1",
 		"@tauri-apps/plugin-fs": "^2.5.1",

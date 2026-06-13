@@ -2,13 +2,23 @@
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { settings } from '@glyph/ui/settings';
+	import { NavProgress } from '@glyph/ui/nav-progress';
 	import { initTauriTheme } from '$lib/tauri-theme';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import { launch } from '$lib/launch';
 	import { projectHost } from '$lib/project';
 
 	let { children } = $props();
+
+	// Dismiss the boot splash (in app.html) once the app has mounted.
+	onMount(async () => {
+		await tick();
+		const boot = document.getElementById('boot');
+		if (!boot) return;
+		boot.classList.add('boot-leaving');
+		setTimeout(() => boot.remove(), 300);
+	});
 
 	// Page transitions via the View Transitions API. The projects home and the
 	// editor share a per-project `view-transition-name`, so the clicked card
@@ -80,4 +90,8 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
+
+<!-- Top-of-window navigation progress (Linear/Vercel style), in the brand accent. -->
+<NavProgress color="var(--brand)" />
+
 {@render children()}

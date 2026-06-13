@@ -42,4 +42,5 @@
 	onrename={(id, name) => projects.rename(id, name)}
 	onduplicate={(id) => projects.duplicate(id)}
 	ondelete={(id) => projects.remove(id)}
+	onsettings={() => goto('/settings')}
 />

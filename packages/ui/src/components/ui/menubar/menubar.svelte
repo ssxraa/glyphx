@@ -4,7 +4,6 @@
 
 	let {
 		ref = $bindable(null),
-		value = $bindable(),
 		class: className,
 		...restProps
 	}: MenubarPrimitive.RootProps = $props();
@@ -12,7 +11,6 @@
 
 <MenubarPrimitive.Root
 	bind:ref
-	bind:value
 	data-slot="menubar"
 	class={cn("flex items-center gap-0.5", className)}
 	{...restProps}

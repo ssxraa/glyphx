@@ -189,7 +189,8 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     onpersist?: (files: GlyphFile[]) => void;
   } = $props();
 
-  const seedFiles = initialFiles && initialFiles.length ? initialFiles : DEMO_FILES;
+  const seedFiles =
+    initialFiles && initialFiles.length ? initialFiles : DEMO_FILES;
 
   let files = $state<GlyphFile[]>(seedFiles.map((f) => ({ ...f })));
   let activeId = $state(seedFiles[0]?.id ?? "main");
@@ -367,7 +368,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   async function setMain(id: string): Promise<void> {
     mainId = id;
     await writeManifest();
-    toast.success(`${baseName(files.find((f) => f.id === id)?.name ?? "")} is now the main file`);
+    toast.success(
+      `${baseName(files.find((f) => f.id === id)?.name ?? "")} is now the main file`,
+    );
   }
 
   // The `.glyx` manifest (project root, named after the folder) records the main
@@ -425,7 +428,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       const list = await project.readFiles(root);
       projectRoot = root;
       // `.glyx` manifest is project metadata — keep it on disk, hide from the tree.
-      const visible = list.filter((f) => !f.rel.toLowerCase().endsWith(".glyx"));
+      const visible = list.filter(
+        (f) => !f.rel.toLowerCase().endsWith(".glyx"),
+      );
       files = visible.map((f) => ({
         id: f.abs,
         name: f.rel,
@@ -486,7 +491,10 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     }
     await flushActive();
     try {
-      const ok = await project.exportZip(projectRoot, `${baseName(projectRoot)}.zip`);
+      const ok = await project.exportZip(
+        projectRoot,
+        `${baseName(projectRoot)}.zip`,
+      );
       if (ok) toast.success("Exported project as ZIP");
     } catch (e) {
       toast.error(`Export failed — ${e}`);
@@ -565,7 +573,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
 
   // Snapshot of the current files (active file's live source merged in).
   function snapshotFiles(): GlyphFile[] {
-    return files.map((f) => (f.id === activeId ? { ...f, content: source } : f));
+    return files.map((f) =>
+      f.id === activeId ? { ...f, content: source } : f,
+    );
   }
 
   // Persist back to the host (project store) on any edit, debounced. Disabled
@@ -772,7 +782,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   async function downloadPdf() {
     if (!pdfBytes) return;
     const srcName =
-      files.find((f) => f.id === mainId)?.name ?? activeFile?.name ?? "document";
+      files.find((f) => f.id === mainId)?.name ??
+      activeFile?.name ??
+      "document";
     const base = baseName(srcName).replace(/\.[^./\\]+$/, "") || "document";
     const filename = `${base}.pdf`;
     try {
@@ -1126,7 +1138,13 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   >
     <!-- Left: logo + application menu -->
     <div class="flex shrink-0 items-center gap-1.5">
-      <Logo href="/" text={false} size="md" viewTransitionName="app-logo" class="pr-1" />
+      <Logo
+        href="/"
+        text={false}
+        size="md"
+        viewTransitionName="app-logo"
+        class="pr-1"
+      />
       <MenuBar {menus} />
     </div>
 
@@ -1143,17 +1161,12 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
 
     <!-- Right: view toggles · export · compile -->
     <div class="inline-flex shrink-0 items-center gap-2">
-
-      <Select
-        bind:value={viewMode}
-        type="single"
-        name="viewMode"
-      >
-        <SelectTrigger size="sm">
-			{@const Icon = viewOptions.find((o) => o.value === viewMode)?.icon}
-			{#if Icon}
-			  <Icon class="inline-block" />
-			{/if}
+      <Select bind:value={viewMode} type="single" name="viewMode">
+        <SelectTrigger size="sm" class="w-auto min-w-0 border-0" aria-label="Select view mode">
+          {@const Icon = viewOptions.find((o) => o.value === viewMode)?.icon}
+          {#if Icon}
+            <Icon class="inline-block" />
+          {/if}
           {viewMode === "editor"
             ? "Editor only"
             : viewMode === "split"
@@ -1252,7 +1265,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         onrenamefile={renameFile}
         ondeletefile={deleteFile}
         onsetmain={setMain}
-        onregistershell={project?.registerShellIntegration ? registerShell : undefined}
+        onregistershell={project?.registerShellIntegration
+          ? registerShell
+          : undefined}
         {searchResults}
         {searchActive}
         onsearch={runSearch}
