@@ -6,6 +6,12 @@
 
 <script lang="ts">
 	import Self from './file-tree.svelte';
+	import {
+		DropdownMenu,
+		DropdownMenuContent,
+		DropdownMenuItem,
+		DropdownMenuTrigger
+	} from '@glyph/ui/dropdown-menu';
 	import { slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import {
@@ -57,12 +63,10 @@
 	const toggle = (path: string) => (open[path] = !isOpen(path));
 	const indent = (d: number) => `${d * 12 + 8}px`;
 
-	let menuId = $state<string | null>(null);
 	let renamingId = $state<string | null>(null);
 	let renameValue = $state('');
 
 	function startRename(node: TreeFile) {
-		menuId = null;
 		renamingId = node.id;
 		renameValue = node.name;
 	}
@@ -71,14 +75,6 @@
 		if (name) onrename?.(id, name);
 		renamingId = null;
 	}
-
-	// Close an open row menu on any outside click.
-	$effect(() => {
-		if (menuId === null) return;
-		const close = () => (menuId = null);
-		window.addEventListener('click', close);
-		return () => window.removeEventListener('click', close);
-	});
 </script>
 
 {#each nodes as node (node.type === 'folder' ? `d:${node.path}` : `f:${node.id}`)}
@@ -164,60 +160,34 @@
 					{/if}
 				</button>
 
-				<div class="absolute top-1/2 right-1 -translate-y-1/2">
-					<button
-						class="text-muted-foreground hover:bg-muted hover:text-foreground grid size-5 place-items-center rounded opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 {menuId ===
-						node.id
-							? 'opacity-100'
-							: ''}"
-						title="File actions"
-						aria-label="File actions"
-						onclick={(e) => {
-							e.stopPropagation();
-							menuId = menuId === node.id ? null : node.id;
-						}}
-					>
-						<IconDots size={14} />
-					</button>
-					{#if menuId === node.id}
-						<div
-							class="bg-popover border-border shadow-craft-floating absolute top-6 right-0 z-30 w-40 rounded-lg border p-1"
-							role="menu"
-						>
-							{#if onsetmain && isTex(node.name) && node.id !== mainId}
-								<button
-									class="hover:bg-muted flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] transition-colors"
-									onclick={(e) => {
-										e.stopPropagation();
-										menuId = null;
-										onsetmain?.(node.id);
-									}}
-								>
-									<IconTargetArrow size={14} class="text-muted-foreground" /> Set as main
-								</button>
-							{/if}
+				<DropdownMenu>
+					<DropdownMenuTrigger>
+						{#snippet child({ props })}
 							<button
-								class="hover:bg-muted flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] transition-colors"
-								onclick={(e) => {
-									e.stopPropagation();
-									startRename(node);
-								}}
+								{...props}
+								class="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+								title="File actions"
+								aria-label="File actions"
+								onclick={(e: MouseEvent) => e.stopPropagation()}
 							>
-								<IconPencil size={14} class="text-muted-foreground" /> Rename
+								<IconDots size={14} />
 							</button>
-							<button
-								class="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] transition-colors"
-								onclick={(e) => {
-									e.stopPropagation();
-									menuId = null;
-									ondelete?.(node.id);
-								}}
-							>
-								<IconTrash size={14} /> Delete
-							</button>
-						</div>
-					{/if}
-				</div>
+						{/snippet}
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" class="w-40">
+						{#if onsetmain && isTex(node.name) && node.id !== mainId}
+							<DropdownMenuItem onSelect={() => onsetmain?.(node.id)}>
+								<IconTargetArrow class="text-muted-foreground" /> Set as main
+							</DropdownMenuItem>
+						{/if}
+						<DropdownMenuItem onSelect={() => startRename(node)}>
+							<IconPencil class="text-muted-foreground" /> Rename
+						</DropdownMenuItem>
+						<DropdownMenuItem variant="destructive" onSelect={() => ondelete?.(node.id)}>
+							<IconTrash /> Delete
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			{/if}
 		</div>
 	{/if}

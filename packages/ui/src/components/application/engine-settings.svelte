@@ -15,6 +15,8 @@
 		list: () => Promise<EngineVersion[]>;
 		download: (version: string) => Promise<string>;
 		setActive: (version: string) => Promise<void>;
+		/** Uninstall a downloaded version to reclaim disk (optional). */
+		remove?: (version: string) => Promise<void>;
 		/** Managed package-cache controls (optional). */
 		cacheInfo?: () => Promise<CacheInfo>;
 		clearCache?: () => Promise<void>;
@@ -38,6 +40,10 @@
 	let busy = $state<string | undefined>(undefined);
 	let error = $state<string | undefined>(undefined);
 	let loaded = $state(false);
+	let showAll = $state(false);
+
+	const PREVIEW = 8;
+	const shown = $derived(showAll ? versions : versions.slice(0, PREVIEW));
 
 	let cache = $state<CacheInfo | undefined>(undefined);
 	let prefetching = $state(false);
@@ -127,6 +133,20 @@
 			error = String(e);
 		}
 	}
+
+	async function remove(version: string) {
+		if (!engine.remove) return;
+		busy = version;
+		error = undefined;
+		try {
+			await engine.remove(version);
+			await refresh();
+		} catch (e) {
+			error = String(e);
+		} finally {
+			busy = undefined;
+		}
+	}
 </script>
 
 <div class="flex flex-col gap-2">
@@ -151,7 +171,7 @@
 
 	{#if versions.length}
 		<div class="flex flex-col gap-1">
-			{#each versions.slice(0, 8) as v (v.version)}
+			{#each shown as v (v.version)}
 				{@const nightly = v.version === 'nightly'}
 				<div class="border-border flex items-center gap-2 rounded-md border px-2 py-1">
 					<span class="text-foreground text-[13px] {nightly ? 'capitalize' : 'tabular-nums'}">
@@ -167,7 +187,7 @@
 					{:else if v.installed}
 						<span class="text-muted-foreground/70 text-[10px] tracking-wide uppercase">Installed</span>
 					{/if}
-					<div class="ml-auto">
+					<div class="ml-auto flex items-center gap-1">
 						{#if !v.installed}
 							<Button
 								variant={nightly ? 'secondary' : 'outline'}
@@ -177,12 +197,36 @@
 							>
 								{busy === v.version ? 'Downloading…' : 'Download'}
 							</Button>
-						{:else if !v.active}
-							<Button variant="secondary" size="xs" onclick={() => use(v.version)}>Use</Button>
+						{:else}
+							{#if !v.active}
+								<Button variant="secondary" size="xs" onclick={() => use(v.version)}>Use</Button>
+							{/if}
+							{#if engine.remove}
+								<Button
+									variant="ghost"
+									size="xs"
+									class="text-muted-foreground hover:text-destructive"
+									onclick={() => remove(v.version)}
+									disabled={busy === v.version}
+									title="Uninstall this version"
+								>
+									{busy === v.version ? 'Removing…' : 'Remove'}
+								</Button>
+							{/if}
 						{/if}
 					</div>
 				</div>
 			{/each}
+			{#if versions.length > PREVIEW}
+				<Button
+					variant="ghost"
+					size="xs"
+					class="text-muted-foreground self-start"
+					onclick={() => (showAll = !showAll)}
+				>
+					{showAll ? 'Show fewer' : `Show all ${versions.length} versions`}
+				</Button>
+			{/if}
 		</div>
 	{/if}
 

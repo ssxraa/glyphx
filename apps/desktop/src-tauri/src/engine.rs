@@ -40,6 +40,23 @@ fn installed_path(dir: &Path, version: &str) -> PathBuf {
     dir.join(format!("tectonic-{version}{}", bin_ext()))
 }
 
+/// Versions currently installed in `dir` (parsed from `tectonic-<version>` files).
+fn installed_versions(dir: &Path) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(dir) {
+        for entry in rd.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if let Some(rest) = name.strip_prefix("tectonic-") {
+                let v = rest.strip_suffix(".exe").unwrap_or(rest);
+                if !v.is_empty() {
+                    out.push(v.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
 /// App-managed Tectonic cache dir. Deterministic (unlike Tectonic's default
 /// per-user cache) so we can show its size, clear it, and pre-warm it.
 pub fn cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
@@ -263,6 +280,27 @@ pub async fn set_active_engine(app: tauri::AppHandle, version: String) -> Result
         return Err("that version is not installed".into());
     }
     std::fs::write(active_marker(&dir), &version).map_err(|e| e.to_string())
+}
+
+/// Uninstall a downloaded engine binary to reclaim disk space. If it was the
+/// active engine, re-point `active` at any other installed version (or clear the
+/// marker, letting the compiler fall back to a bundled / PATH `tectonic`).
+#[tauri::command]
+pub async fn remove_tectonic(app: tauri::AppHandle, version: String) -> Result<(), String> {
+    let dir = engines_dir(&app).ok_or("no app data directory")?;
+    let path = installed_path(&dir, &version);
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    if read_active(&dir).as_deref() == Some(version.as_str()) {
+        match installed_versions(&dir).into_iter().find(|v| v != &version) {
+            Some(next) => std::fs::write(active_marker(&dir), next).map_err(|e| e.to_string())?,
+            None => {
+                let _ = std::fs::remove_file(active_marker(&dir));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn extract_binary(bytes: &[u8], asset_name: &str, target: &Path) -> Result<(), String> {

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { settings } from '@glyph/ui/settings';
 
 /** Shape returned by the Rust `compile_latex` command. */
 type RawCompileResult = {
@@ -28,7 +29,10 @@ export async function compileLatex(source: string): Promise<CompileOutcome> {
 		return { error: 'Compilation runs in the Glyph desktop app.' };
 	}
 	try {
-		const res = await invoke<RawCompileResult>('compile_latex', { source });
+		const res = await invoke<RawCompileResult>('compile_latex', {
+			source,
+			shellEscape: settings.shellEscape
+		});
 		if (res.success && res.pdf_base64)
 			return { pdf: res.pdf_base64, log: res.log, synctex: res.synctex ?? undefined };
 		return { log: res.log, error: res.message ?? 'Compilation failed.' };
@@ -47,7 +51,11 @@ export async function compileProject(root: string, mainRel: string): Promise<Com
 		return { error: 'Compilation runs in the Glyph desktop app.' };
 	}
 	try {
-		const res = await invoke<RawCompileResult>('compile_project', { root, main: mainRel });
+		const res = await invoke<RawCompileResult>('compile_project', {
+			root,
+			main: mainRel,
+			shellEscape: settings.shellEscape
+		});
 		if (res.success && res.pdf_base64)
 			return { pdf: res.pdf_base64, log: res.log, synctex: res.synctex ?? undefined };
 		return { log: res.log, error: res.message ?? 'Compilation failed.' };

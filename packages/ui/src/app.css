@@ -393,3 +393,54 @@
 [role='tab']:not([data-disabled]):not([aria-disabled='true']) {
 	cursor: pointer;
 }
+
+/* --- Scrollbars (slim, monochrome) ------------------------------------------
+   A quiet neutral scrollbar everywhere — a thin foreground-tinted pill on a
+   transparent track that brightens on hover/active. Firefox uses the standard
+   props; WebKit/Chromium (the Tauri WebView) gets the styled pseudo-elements. */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in oklab, var(--foreground) 18%, transparent) transparent;
+}
+
+::-webkit-scrollbar {
+	width: 11px;
+	height: 11px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: color-mix(in oklab, var(--foreground) 16%, transparent);
+	/* The transparent border + padding-box clip makes the pill look slim with
+	   breathing room from the track edge. */
+	border: 3px solid transparent;
+	border-radius: 9999px;
+	background-clip: padding-box;
+	transition: background-color 0.15s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: color-mix(in oklab, var(--foreground) 28%, transparent);
+	background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:active {
+	background: color-mix(in oklab, var(--foreground) 40%, transparent);
+	background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+	background: transparent;
+}
+
+/* Reserve the scrollbar gutter so content doesn't reflow when it appears. */
+.scrollbar-gutter-stable {
+	scrollbar-gutter: stable;
+}
+
+/* Fully hide the scrollbar (used by the command list, etc.). */
+.no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+	display: none;
+}

@@ -82,7 +82,7 @@ pub async fn prefetch_packages(app: tauri::AppHandle) -> Result<CompileResult, S
 \usepackage[hidelinks]{hyperref}
 \usepackage[english]{babel}
 \begin{document}Warming the package cache.\end{document}";
-    compile_latex(app, WARM.to_string()).await
+    compile_latex(app, WARM.to_string(), Some(false)).await
 }
 
 /// Read and gunzip `<stem>.synctex.gz` from the output dir, if present.
@@ -143,7 +143,12 @@ pub fn find_tectonic(app: &tauri::AppHandle) -> PathBuf {
 /// etc. relative to the main file's own directory, so multi-file projects work
 /// as long as `main_tex` lives in the project folder. The PDF / log / synctex
 /// are named after the main file's stem (e.g. `report.tex` → `report.pdf`).
-fn run_tectonic(app: &tauri::AppHandle, main_tex: &std::path::Path, outdir: &std::path::Path) -> CompileResult {
+fn run_tectonic(
+    app: &tauri::AppHandle,
+    main_tex: &std::path::Path,
+    outdir: &std::path::Path,
+    shell_escape: bool,
+) -> CompileResult {
     let stem = main_tex
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
@@ -161,8 +166,16 @@ fn run_tectonic(app: &tauri::AppHandle, main_tex: &std::path::Path, outdir: &std
         // bad boxes, …) and still emit a best-effort PDF — the Overleaf / latexmk
         // `nonstopmode` behaviour. Errors are surfaced in the log / Problems panel.
         .arg("-Z")
-        .arg("continue-on-errors")
-        .arg(main_tex);
+        .arg("continue-on-errors");
+    // Shell escape (`\write18`) for packages like minted / gnuplot — opt-in
+    // (it lets a document run system commands). Set the working dir to the main
+    // file's folder so relative paths (e.g. for Pygments) resolve.
+    if shell_escape {
+        let cwd = main_tex.parent().unwrap_or(outdir);
+        cmd.arg("-Z")
+            .arg(format!("shell-escape-cwd={}", cwd.to_string_lossy()));
+    }
+    cmd.arg(main_tex);
     // Deterministic, app-managed package cache (so Settings can show/clear/warm it).
     if let Some(cache) = crate::engine::cache_dir(app) {
         cmd.env("TECTONIC_CACHE_DIR", cache);
@@ -248,11 +261,20 @@ fn run_tectonic(app: &tauri::AppHandle, main_tex: &std::path::Path, outdir: &std
 /// Compile a standalone LaTeX `source` string into a PDF (no project on disk).
 /// Used for the in-memory scratch / sample document and the web fallback.
 #[tauri::command]
-pub async fn compile_latex(app: tauri::AppHandle, source: String) -> Result<CompileResult, String> {
+pub async fn compile_latex(
+    app: tauri::AppHandle,
+    source: String,
+    shell_escape: Option<bool>,
+) -> Result<CompileResult, String> {
     let dir = tempfile::tempdir().map_err(|e| e.to_string())?;
     let tex_path = dir.path().join("main.tex");
     std::fs::write(&tex_path, &source).map_err(|e| e.to_string())?;
-    Ok(run_tectonic(&app, &tex_path, dir.path()))
+    Ok(run_tectonic(
+        &app,
+        &tex_path,
+        dir.path(),
+        shell_escape.unwrap_or(false),
+    ))
 }
 
 /// Compile a multi-file project on disk. `root` is the project folder and `main`
@@ -264,6 +286,7 @@ pub async fn compile_project(
     app: tauri::AppHandle,
     root: String,
     main: String,
+    shell_escape: Option<bool>,
 ) -> Result<CompileResult, String> {
     let root = PathBuf::from(&root);
     let main_path = {
@@ -281,5 +304,10 @@ pub async fn compile_project(
         ));
     }
     let out = tempfile::tempdir().map_err(|e| e.to_string())?;
-    Ok(run_tectonic(&app, &main_path, out.path()))
+    Ok(run_tectonic(
+        &app,
+        &main_path,
+        out.path(),
+        shell_escape.unwrap_or(false),
+    ))
 }

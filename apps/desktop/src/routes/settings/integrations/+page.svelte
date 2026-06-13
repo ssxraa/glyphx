@@ -1,12 +1,10 @@
 <script lang="ts">
-	import { EngineSettings } from '@glyph/ui/application';
 	import { Badge } from '@glyph/ui/badge';
 	import { Button } from '@glyph/ui/button';
 	import { Separator } from '@glyph/ui/separator';
 	import { SettingsField } from '@glyph/ui/settings-field';
 	import { toast } from '@glyph/ui/sonner';
 	import { IconCloud } from '@tabler/icons-svelte';
-	import { engineManager } from '$lib/engine';
 	import { projectHost } from '$lib/project';
 
 	async function addShellIntegration() {
@@ -23,15 +21,9 @@
 	<div>
 		<h2 class="text-lg font-medium tracking-tight">Integrations</h2>
 		<p class="text-muted-foreground mt-1 text-sm">
-			The LaTeX engine, OS integration, and (later) cloud sync.
+			OS integration and (later) cloud sync. The LaTeX engine lives under Engine.
 		</p>
 	</div>
-
-	<SettingsField label="LaTeX engine">
-		<EngineSettings engine={engineManager} />
-	</SettingsField>
-
-	<Separator />
 
 	<SettingsField
 		label="System integration"

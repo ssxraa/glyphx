@@ -93,4 +93,16 @@
 			aria-label="Live compile"
 		/>
 	</SettingsField>
+
+	<SettingsField
+		label="Shell escape"
+		description="Allow \\write18 so packages like minted / gnuplot can run external tools. Off by default — it lets a document run system commands, so only enable it for documents you trust."
+		layout="row"
+	>
+		<Switch
+			checked={settings.shellEscape}
+			onCheckedChange={(v) => (settings.shellEscape = v)}
+			aria-label="Shell escape"
+		/>
+	</SettingsField>
 </div>

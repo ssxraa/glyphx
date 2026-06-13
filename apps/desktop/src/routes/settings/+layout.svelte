@@ -6,6 +6,7 @@
 	import { Toaster } from '@glyph/ui/sonner';
 	import {
 		IconArrowLeft,
+		IconBolt,
 		IconInfoCircle,
 		IconPencil,
 		IconPlug,
@@ -18,6 +19,7 @@
 	const nav = [
 		{ href: '/settings/general', label: 'General', icon: IconSettings },
 		{ href: '/settings/editor', label: 'Editor', icon: IconPencil },
+		{ href: '/settings/engine', label: 'Engine', icon: IconBolt },
 		{ href: '/settings/integrations', label: 'Integrations', icon: IconPlug },
 		{ href: '/settings/about', label: 'About', icon: IconInfoCircle }
 	];

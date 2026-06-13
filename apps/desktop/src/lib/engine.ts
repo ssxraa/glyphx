@@ -13,6 +13,7 @@ export const engineManager: EngineManager = {
 	list: () => invoke<EngineVersion[]>('list_tectonic_versions'),
 	download: (version: string) => invoke<string>('download_tectonic', { version }),
 	setActive: (version: string) => invoke<void>('set_active_engine', { version }),
+	remove: (version: string) => invoke<void>('remove_tectonic', { version }),
 	cacheInfo: () => invoke<CacheInfo>('tectonic_cache_info'),
 	clearCache: () => invoke<void>('clear_tectonic_cache'),
 	prefetch: async (): Promise<PrefetchResult> => {

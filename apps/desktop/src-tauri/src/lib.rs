@@ -70,6 +70,7 @@ pub fn run() {
             engine::list_tectonic_versions,
             engine::download_tectonic,
             engine::set_active_engine,
+            engine::remove_tectonic,
             engine::tectonic_cache_info,
             engine::clear_tectonic_cache,
             project::read_project_files,

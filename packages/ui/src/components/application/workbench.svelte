@@ -882,6 +882,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
           compileError = undefined;
           compileStatus = "success";
           lastCompiledSource = snapshot;
+          // A best-effort PDF can still carry errors (e.g. an undefined macro
+          // that the engine recovered from). Surface them like Overleaf does.
+          if (problemSummary.errors > 0) showProblems = true;
         } else {
           compileError = out.error ?? "Compilation failed.";
           compileStatus = "error";

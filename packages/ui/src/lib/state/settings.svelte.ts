@@ -36,6 +36,12 @@ export interface EditorSettings {
 	lineWrapping: boolean;
 	/** Recompile automatically as you type (debounced). */
 	autoCompile: boolean;
+	/**
+	 * Allow `\write18` (shell escape) during compilation — required by packages
+	 * that run external tools (e.g. `minted`/Pygments, `gnuplot`). Off by default:
+	 * it lets a document run arbitrary system commands, so it's opt-in.
+	 */
+	shellEscape: boolean;
 }
 
 export const EDITOR_DEFAULTS: EditorSettings = {
@@ -44,6 +50,7 @@ export const EDITOR_DEFAULTS: EditorSettings = {
 	fontSize: 13,
 	lineWrapping: false,
 	autoCompile: true,
+	shellEscape: false,
 };
 
 /** Debounce (ms) before an edit triggers an automatic recompile. */
@@ -168,6 +175,13 @@ class SettingsStore {
 	}
 	set autoCompile(value: boolean) {
 		this.patchEditor({ autoCompile: value });
+	}
+
+	get shellEscape(): boolean {
+		return this.#editor.current.shellEscape ?? false;
+	}
+	set shellEscape(value: boolean) {
+		this.patchEditor({ shellEscape: value });
 	}
 }
 

@@ -430,7 +430,7 @@
 		{:else}
 			<!-- Settings — same SettingsField / Separator primitives as the
 			     /settings route, in the compact (sm) size. -->
-			<div class="flex flex-col gap-4 px-1 pt-0.5 pb-2">
+			<div class="flex flex-col gap-3 px-1 pt-0.5 pb-2">
 				<SettingsField size="sm" label="Appearance">
 					<Segmented
 						options={appearanceOpts}
