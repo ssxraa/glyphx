@@ -1,137 +1,163 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Reveal } from '@glyphx/ui/reveal';
-	import SiteHeader from '$lib/SiteHeader.svelte';
-	import SiteFooter from '$lib/SiteFooter.svelte';
 	import FloatingGlyphs from '$lib/FloatingGlyphs.svelte';
+	import SiteFooter from '$lib/SiteFooter.svelte';
+	import SiteHeader from '$lib/SiteHeader.svelte';
+	import { CardStack, CardStackItem, SplitReveal } from '$lib/motion-core';
+	import { trackEvent } from '$lib/analytics';
+	import { Reveal } from '@glyphx/ui/reveal';
 	import {
+		IconAlertTriangle,
 		IconArrowRight,
-		IconCheck,
-		IconMinus,
-		IconLock,
-		IconWifiOff,
 		IconBolt,
-		IconFolder,
-		IconFileText,
-		IconBrandGithub,
-		IconDownload,
-		IconPlayerPlay,
-		IconCpu,
-		IconCloud,
-		IconKey,
-		IconSparkles,
-		IconGitBranch,
 		IconBrandDropbox,
-		IconShare
+		IconCheck,
+		IconCloud,
+		IconCpu,
+		IconDownload,
+		IconFileText,
+		IconFolder,
+		IconGitBranch,
+		IconKey,
+		IconLayoutColumns,
+		IconLock,
+		IconMinus,
+		IconPlayerPlay,
+		IconShare,
+		IconSparkles,
+		IconWifiOff
 	} from '@tabler/icons-svelte';
 
-	const features = [
+	// Core capabilities, shown as a scroll-driven card stack. Everything here
+	// ships today. `visual` selects the small illustration on each card.
+	type Visual = 'code' | 'compile' | 'split' | 'git' | 'private';
+	type Capability = { icon: typeof IconFileText; title: string; body: string; visual: Visual };
+	const capabilities: Capability[] = [
 		{
 			icon: IconFileText,
 			title: 'Real LaTeX, not a lookalike',
-			body: 'Full math, figures, BibTeX, and the packages your journal template leans on. The PDF you get is the PDF your reviewer gets.'
+			body: 'Full math, figures, BibTeX, and the packages a journal template or thesis class actually needs. What you write is standard .tex, and the PDF you get is the PDF your reviewer gets.',
+			visual: 'code'
 		},
 		{
 			icon: IconBolt,
 			title: 'Compiles on your machine',
-			body: 'No shared queue, no server, no "compile timed out" the night before a deadline. The renderer runs locally and keeps up while you type.'
+			body: 'The engine runs on your computer. No shared queue, no server, and no timeout the night before a deadline. The preview keeps up while you type.',
+			visual: 'compile'
 		},
 		{
-			icon: IconFolder,
-			title: 'Your folder is the project',
-			body: 'A project is a directory on disk. Open it, edit it, drag files between folders, and back it up the way you already back up files.'
-		},
-		{
-			icon: IconLock,
-			title: 'Private by default',
-			body: 'Unpublished results, grant drafts, a thesis under embargo. None of it is uploaded, indexed, or fed to a model. It sits on your disk and nowhere else.'
-		},
-		{
-			icon: IconWifiOff,
-			title: 'Works with the wifi off',
-			body: 'On a flight, in a basement lab, on a train with no signal. The editor and the live preview do not wait on a connection.'
-		},
-		{
-			icon: IconBrandGithub,
-			title: 'Free, and the source is open',
-			body: 'The browser editor is free with no account. The desktop app is free too. You can read every line of it on GitHub.'
-		}
-	] as const;
-
-	// Recurring Overleaf pain points, paraphrased from what people actually run
-	// into (compile timeouts on the free tier, premium-gated history and Git,
-	// lag on long files, the always-online model). Honest, not a pile-on.
-	const painPoints = [
-		{
-			quote: 'Compile timed out.',
-			body: 'On the free plan a long chapter can stop building right when you need the PDF most.'
-		},
-		{
-			quote: 'Upgrade to keep working together.',
-			body: 'More collaborators, Git, and Dropbox sync all sit behind the paid tier.'
-		},
-		{
-			quote: 'Where did my history go?',
-			body: 'Full version history is a premium feature, so a free account only sees so far back.'
-		},
-		{
-			quote: 'Why is the editor lagging?',
-			body: 'Long documents get sluggish because every keystroke is round tripping through a server.'
-		},
-		{
-			quote: 'Is my draft actually private?',
-			body: 'Your unpublished work lives on infrastructure you do not own or control.'
-		},
-		{
-			quote: 'I have no signal.',
-			body: 'No connection means no editor, even if all you wanted was to fix one line.'
-		}
-	];
-
-	// How the local + cloud split works: heavy/private work local, the cloud
-	// reached through the user's own accounts.
-	const model = [
-		{
-			icon: IconCpu,
-			title: 'Compiling stays on your machine',
-			body: 'The LaTeX engine runs on your computer. No shared queue, no build sitting on our servers, nothing to time out.'
-		},
-		{
-			icon: IconCloud,
-			title: 'Sync through your own cloud',
-			body: 'Connect the storage you already use. Your files move through your GitHub, Dropbox, or Drive, never through us.'
-		},
-		{
-			icon: IconKey,
-			title: 'Your AI, your key',
-			body: 'Bring an API key from the provider you trust. Requests go straight from the app to them, and we never sit in the middle.'
-		}
-	] as const;
-
-	// The integration roadmap. Honest about being the plan, not shipped yet.
-	const integrations = [
-		{
-			icon: IconSparkles,
-			title: 'Bring your own AI provider',
-			body: 'Use an OpenAI-compatible key from OpenAI, Gemini, DeepSeek, or whoever you prefer. Rephrase a paragraph, draft an equation, or decode a compiler error, all on your own account and billing.',
-			tag: 'Planned'
+			icon: IconLayoutColumns,
+			title: 'Source and page, side by side',
+			body: 'Write on the left, watch the document render on the right. Double click a spot in the PDF to jump to the line that made it, and jump the other way too.',
+			visual: 'split'
 		},
 		{
 			icon: IconGitBranch,
-			title: 'Git and GitHub, built in',
-			body: 'Commit as you write and push to your own repository. Real history, branches, and diffs, without versioning sitting behind a paywall.',
+			title: 'Git built in, no paywall',
+			body: 'Stage and commit, read a side by side diff, browse history, clone a repository, and push, pull, or sync with your own remote. Real version control, no subscription tier.',
+			visual: 'git'
+		},
+		{
+			icon: IconLock,
+			title: 'Private and offline by default',
+			body: 'Unpublished results, grant drafts, a thesis under embargo. None of it is uploaded, indexed, or fed to a model. It sits on your disk, and the editor never waits on a connection.',
+			visual: 'private'
+		}
+	];
+
+	// Recurring Overleaf frustrations, paraphrased from what people actually hit.
+	// Rendered as a faux "notifications" panel: these are the real messages a
+	// cloud editor shows you. `tone` colors the severity; `tag` is the source.
+	type Tone = 'red' | 'amber' | 'muted';
+	type PainPoint = { quote: string; body: string; tone: Tone; icon: typeof IconLock; tag: string };
+	const painPoints: PainPoint[] = [
+		{
+			quote: 'Compile timed out.',
+			body: 'On the free plan a long chapter can stop building right when you need the PDF most.',
+			tone: 'red',
+			icon: IconAlertTriangle,
+			tag: 'free tier'
+		},
+		{
+			quote: 'Upgrade to keep working.',
+			body: 'More collaborators, Git, and Dropbox sync all sit behind the paid tier.',
+			tone: 'amber',
+			icon: IconLock,
+			tag: 'premium'
+		},
+		{
+			quote: 'Where did my history go?',
+			body: 'Full version history is a premium feature, so a free account only sees so far back.',
+			tone: 'amber',
+			icon: IconLock,
+			tag: 'premium'
+		},
+		{
+			quote: 'Why is the editor lagging?',
+			body: 'Long documents get sluggish because every keystroke round trips through a server.',
+			tone: 'red',
+			icon: IconAlertTriangle,
+			tag: 'server round trip'
+		},
+		{
+			quote: 'Is my draft actually private?',
+			body: 'Your unpublished work lives on infrastructure you do not own or control.',
+			tone: 'amber',
+			icon: IconAlertTriangle,
+			tag: 'their servers'
+		},
+		{
+			quote: 'I have no signal.',
+			body: 'No connection means no editor, even if all you wanted was to fix one line.',
+			tone: 'muted',
+			icon: IconWifiOff,
+			tag: 'offline'
+		}
+	];
+
+	// Tone -> classes for the notification rows.
+	const toneClass: Record<Tone, { chip: string; bar: string }> = {
+		red: { chip: 'bg-destructive/10 text-destructive', bar: 'bg-destructive' },
+		amber: { chip: 'bg-warning/10 text-warning', bar: 'bg-warning' },
+		muted: { chip: 'bg-muted text-muted-foreground', bar: 'bg-muted-foreground/40' }
+	};
+
+	// What stays local vs. what you reach through your own accounts.
+	const local = [
+		{
+			icon: IconCpu,
+			title: 'The compiler',
+			body: 'The LaTeX engine runs on your computer. Nothing is queued on our servers.'
+		},
+		{
+			icon: IconFolder,
+			title: 'Your files',
+			body: 'Projects are folders on your disk. Opening one reads a directory, saving writes a file.'
+		},
+		{
+			icon: IconGitBranch,
+			title: 'Your history',
+			body: 'Commits live in your own Git repository, on your machine and on the remote you pick.'
+		}
+	] as const;
+
+	const connected = [
+		{
+			icon: IconKey,
+			title: 'Your AI key',
+			body: 'Connect a key from a provider you trust. Requests go from the app straight to them.',
 			tag: 'Planned'
 		},
 		{
-			icon: IconBrandDropbox,
-			title: 'Dropbox and Google Drive sync',
-			body: 'Keep a project in the cloud storage you already pay for and pick it back up on another machine. You pick the provider, you hold the account.',
+			icon: IconCloud,
+			title: 'Your cloud storage',
+			body: 'Sync through Dropbox or Google Drive, on the account you already pay for.',
 			tag: 'Planned'
 		},
 		{
 			icon: IconShare,
-			title: 'Share on your terms',
-			body: 'Hand a project to a collaborator from the desktop app. We store only what you actively share, only while it is shared, and only under your personal account.',
+			title: 'Sharing',
+			body: 'Hand a project to a collaborator, stored only while shared and only under your name.',
 			tag: 'Planned'
 		}
 	] as const;
@@ -143,13 +169,13 @@
 		{ label: 'Runs fully offline', glyph: true, overleaf: false, desktop: true },
 		{ label: 'Nothing uploaded to a server', glyph: true, overleaf: false, desktop: true },
 		{ label: 'No compile timeout', glyph: true, overleaf: 'Free limit', desktop: true },
+		{ label: 'Git built in', glyph: true, overleaf: 'Paid', desktop: 'Bring your own' },
 		{
 			label: 'Version history without paying',
-			glyph: 'Your VCS',
+			glyph: 'Built in',
 			overleaf: 'Paid',
 			desktop: 'Your VCS'
 		},
-		{ label: 'Git without a subscription', glyph: true, overleaf: 'Paid', desktop: true },
 		{ label: 'AI help with your own key', glyph: 'Planned', overleaf: 'Paid', desktop: false },
 		{
 			label: 'Sync through your own cloud',
@@ -164,17 +190,17 @@
 		{
 			n: '01',
 			title: 'Open a folder, or start a blank one',
-			body: 'Point GlyphX at an existing project directory or create a new document. There is no upload step and no project size to worry about.'
+			body: 'Point GlyphX at an existing project directory or create a new document. There is no upload step and no size to worry about.'
 		},
 		{
 			n: '02',
-			title: 'Write LaTeX with the preview beside you',
-			body: 'Type in real LaTeX and watch the page update next to it. Math, figures, and citations render as you go.'
+			title: 'Write LaTeX with the page beside you',
+			body: 'Type real LaTeX and watch the document update next to it. Math, figures, and citations render as you go.'
 		},
 		{
 			n: '03',
 			title: 'Export the PDF your journal expects',
-			body: 'Compile to a clean PDF that matches your template or thesis spec, ready to submit. The file lands in your folder.'
+			body: 'Compile to a clean PDF that matches your template or thesis spec. The file lands in your folder, ready to submit.'
 		}
 	];
 
@@ -196,12 +222,12 @@
 			a: 'Yes. Overleaf projects are plain LaTeX underneath. Download the project folder, drop it into GlyphX, and keep writing.'
 		},
 		{
-			q: 'Does it use AI, and where does my data go?',
-			a: 'AI help is opt-in and brings your own key. You connect a provider such as OpenAI, Gemini, or DeepSeek, and requests go from the app straight to them on your own account. We are not in the path, and there is no shared model trained on your writing.'
+			q: 'Does GlyphX have version control?',
+			a: 'Yes. The desktop app has a built in Git client: stage and commit, read a side by side diff, browse history, clone a repository, and push, pull, or sync with your own remote. No subscription tier in the way.'
 		},
 		{
-			q: 'If everything is local, how do sharing and sync work?',
-			a: 'Through accounts you already have. Connect GitHub, Dropbox, or Google Drive and your files sync through those. If you share a project with someone, we store only that project, only while it is shared, and only under your personal account.'
+			q: 'Does it use AI, and where would my data go?',
+			a: 'AI help is on the roadmap and will be opt in with your own key. You would connect a provider such as OpenAI or another one you trust, and requests go from the app straight to them on your account. We are not in the path, and there is no shared model trained on your writing.'
 		},
 		{
 			q: 'What does it cost?',
@@ -209,7 +235,7 @@
 		},
 		{
 			q: 'Does it really work offline?',
-			a: 'Yes. The editor and the renderer both run on your machine, so a flaky connection or no connection at all does not stop you.'
+			a: 'On the desktop, yes. The editor and the engine both run on your machine, so a flaky connection or no connection at all does not stop you. The browser editor needs to be online the first time it fetches a package.'
 		}
 	];
 </script>
@@ -218,43 +244,44 @@
 	<title>GlyphX: the LaTeX editor Overleaf should have been</title>
 	<meta
 		name="description"
-		content="GlyphX is a local-first LaTeX editor for researchers, PhD students, and mathematicians. Write papers and theses in real LaTeX, compile on your own machine, and keep your drafts off other people's servers. Free in your browser, plus a native desktop app."
+		content="GlyphX is a local-first LaTeX editor for researchers, PhD students, and mathematicians. Write papers and theses in real LaTeX, compile on your own machine, use built-in Git, and keep your drafts off other people's servers. Free in your browser, plus a native desktop app."
 	/>
 </svelte:head>
 
 <div class="bg-canvas text-foreground min-h-dvh">
 	<SiteHeader />
 
-	<!-- Hero -->
-	<section class="relative">
+	<!-- ============================================================
+	     Hero: centered headline + a full-width product window beneath
+	     ============================================================ -->
+	<section class="relative overflow-hidden">
 		<FloatingGlyphs />
 		<!-- soft brand glow behind the headline -->
 		<div
-			class="pointer-events-none absolute top-[-10%] left-1/2 -z-0 h-[420px] w-[720px] max-w-[90vw] -translate-x-1/2 rounded-full opacity-60 blur-[120px]"
+			class="pointer-events-none absolute top-[-12%] left-1/2 -z-0 h-[460px] w-[820px] max-w-[92vw] -translate-x-1/2 rounded-full opacity-60 blur-[130px]"
 			style="background: radial-gradient(closest-side, var(--brand-subtle), transparent);"
 			aria-hidden="true"
 		></div>
 
 		<div class="relative mx-auto max-w-[1140px] px-5 sm:px-6">
-			<div class="grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:py-24">
-				<Reveal variant="up" class="flex flex-col items-start">
-					<span
-						class="border-hairline bg-card text-muted-foreground mb-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] font-medium tracking-[0.12em] uppercase"
-					>
-						<span class="bg-brand size-1.5 animate-pulse rounded-full"></span>
-						LaTeX, on your machine
-					</span>
-					<h1 class="font-display text-[2.6rem] leading-[1.03] tracking-[-0.035em] sm:text-6xl">
-						The LaTeX editor<br class="hidden sm:block" /> Overleaf should have been.
-					</h1>
-					<p class="text-muted-foreground mt-6 max-w-[34rem] text-lg leading-relaxed">
-						Write papers, proofs, and theses in real LaTeX. Get the desktop app and everything runs
-						on your computer: the compiler, your files, and the sync, Git, and AI you connect
-						through your own accounts. Nothing has to pass through our servers.
+			<div class="flex flex-col items-center pt-24 text-center sm:pt-32">
+				<h1
+					class="font-display max-w-4xl text-[2.6rem] leading-[1.04] tracking-[-0.035em] sm:text-[4.25rem]"
+				>
+					<SplitReveal mode="lines" class="block">
+						The LaTeX editor Overleaf should have been.
+					</SplitReveal>
+				</h1>
+				<Reveal variant="up" delay={250} class="flex flex-col items-center">
+					<p class="text-muted-foreground mt-7 max-w-[40rem] text-lg leading-relaxed">
+						Write papers, proofs, and theses in real LaTeX. The desktop app runs the editor, the
+						compiler, your files, and Git on your own computer. Sync and AI connect through accounts
+						you already own. Nothing has to pass through our servers.
 					</p>
-					<div class="mt-9 flex flex-wrap items-center gap-3">
+					<div class="mt-9 flex flex-wrap items-center justify-center gap-3">
 						<a
 							href={resolve('/download')}
+							onclick={() => trackEvent('cta_download_click', { location: 'hero' })}
 							class="bg-primary text-primary-foreground group inline-flex h-12 items-center gap-2 rounded-lg px-6 text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
 						>
 							<IconDownload class="size-4" /> Get the desktop app
@@ -271,68 +298,80 @@
 						free · no account · the desktop app keeps it all on your machine
 					</p>
 				</Reveal>
+			</div>
 
-				<!-- Editor artifact -->
-				<Reveal variant="morph" delay={120}>
-					<div
-						class="border-hairline bg-card shadow-craft-floating overflow-hidden rounded-2xl border transition-transform duration-500 hover:-translate-y-1"
-					>
-						<div class="border-hairline flex h-10 items-center gap-2 border-b px-4">
-							<span class="bg-muted-foreground/30 size-2.5 rounded-full"></span>
-							<span class="bg-muted-foreground/30 size-2.5 rounded-full"></span>
-							<span class="bg-muted-foreground/30 size-2.5 rounded-full"></span>
-							<span class="text-muted-foreground ml-2 font-mono text-xs">thesis.tex</span>
-							<span
-								class="text-brand border-brand/30 bg-brand-subtle ml-auto rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase"
-								>LaTeX</span
-							>
-						</div>
-						<div class="grid grid-cols-1 sm:grid-cols-2">
-							<pre
-								class="text-muted-foreground overflow-hidden p-4 font-mono text-[11.5px] leading-relaxed"><span
-									class="text-brand">\section</span
-								>&#123;Results&#125;
+			<!-- Full-width product window -->
+			<Reveal variant="morph" delay={140} class="mt-14 sm:mt-16">
+				<div
+					class="border-hairline bg-card shadow-craft-floating overflow-hidden rounded-2xl border"
+				>
+					<div class="border-hairline flex h-11 items-center gap-2 border-b px-4">
+						<span class="bg-muted-foreground/30 size-2.5 rounded-full"></span>
+						<span class="bg-muted-foreground/30 size-2.5 rounded-full"></span>
+						<span class="bg-muted-foreground/30 size-2.5 rounded-full"></span>
+						<span class="text-muted-foreground ml-3 font-mono text-xs">thesis.tex</span>
+						<span
+							class="text-brand border-brand/30 bg-brand-subtle ml-auto rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase"
+							>LaTeX</span
+						>
+					</div>
+					<div class="grid grid-cols-1 lg:grid-cols-2">
+						<pre
+							class="text-muted-foreground border-hairline overflow-hidden border-b p-5 font-mono text-[12px] leading-[1.85] sm:p-6 lg:border-r lg:border-b-0"><span
+								class="text-brand">\documentclass</span
+							>&#123;article&#125;
+<span class="text-brand">\usepackage</span>&#123;amsmath&#125;
 
-We observe that the estimator
-<span class="text-foreground">$\hat&#123;\theta&#125;$</span> is consistent,
-with <span class="text-foreground">$\alpha$</span> scaling as <span class="text-foreground"
-									>$\beta^2$</span
-								>:
+<span class="text-brand">\title</span>&#123;On Local-First Typesetting&#125;
+<span class="text-brand">\author</span>&#123;A. Researcher&#125;
+
+<span class="text-brand">\begin</span>&#123;document&#125;
+<span class="text-brand">\maketitle</span>
+
+We observe that the estimator <span class="text-foreground">$\hat&#123;\theta&#125;$</span>
+is consistent, with <span class="text-foreground">$\alpha$</span> scaling as <span
+								class="text-foreground">$\beta^2$</span
+							>:
 
 <span class="text-brand">\begin</span>&#123;equation&#125;
   E = m c^2
 <span class="text-brand">\end</span>&#123;equation&#125;
 
 See <span class="text-brand">\cite</span>&#123;einstein1905&#125;.<span
-									class="text-brand inline-block h-[1em] w-[2px] translate-y-[2px] align-middle [animation:blink_1.05s_steps(1)_infinite]"
-								></span>
-</pre>
-							<div class="border-hairline bg-canvas/60 border-t p-5 sm:border-t-0 sm:border-l">
-								<div class="text-foreground mb-2 text-lg font-semibold">Results</div>
-								<p class="text-muted-foreground text-sm leading-relaxed">
-									We observe that the estimator θ̂ is consistent, with α scaling as β²:
-								</p>
-								<div class="text-foreground mt-3 text-center text-xl italic">E = mc²</div>
-								<p class="text-muted-foreground/70 mt-3 text-xs">See [1].</p>
+								class="text-brand inline-block h-[1em] w-[2px] translate-y-[2px] align-middle [animation:blink_1.05s_steps(1)_infinite]"
+							></span>
+<span class="text-brand">\end</span>&#123;document&#125;</pre>
+						<div class="bg-canvas/50 p-7 sm:p-9">
+							<div
+								class="text-muted-foreground/60 mb-4 font-mono text-[11px] tracking-widest uppercase"
+							>
+								Live preview
 							</div>
-						</div>
-						<div
-							class="border-hairline text-muted-foreground flex items-center gap-3 border-t px-4 py-2 font-mono text-[11px]"
-						>
-							<span class="text-brand flex items-center gap-1.5">
-								<span class="bg-brand size-1.5 rounded-full"></span> compiled
-							</span>
-							<span>on your device</span>
-							<span class="ml-auto">offline</span>
+							<h3 class="font-display mb-1 text-2xl">On Local-First Typesetting</h3>
+							<p class="text-muted-foreground mb-5 text-sm">A. Researcher</p>
+							<p class="text-muted-foreground leading-relaxed">
+								We observe that the estimator θ̂ is consistent, with α scaling as β²:
+							</p>
+							<div class="text-foreground my-4 text-center text-2xl italic">E = mc²</div>
+							<p class="text-muted-foreground/70 text-sm">See [1].</p>
 						</div>
 					</div>
-				</Reveal>
-			</div>
+					<div
+						class="border-hairline text-muted-foreground flex h-9 items-center gap-4 border-t px-4 font-mono text-[11px]"
+					>
+						<span class="text-brand flex items-center gap-1.5">
+							<span class="bg-brand size-1.5 rounded-full"></span> compiled
+						</span>
+						<span>on your device</span>
+						<span class="text-muted-foreground/50 ml-auto tabular-nums">offline · Ln 14</span>
+					</div>
+				</div>
+			</Reveal>
 		</div>
 	</section>
 
 	<!-- Trust strip -->
-	<Reveal as="section" variant="up">
+	<Reveal as="section" variant="up" class="mt-16 sm:mt-20">
 		<div class="border-hairline mx-auto max-w-[1140px] border-y px-5 sm:px-6">
 			<div
 				class="text-muted-foreground grid grid-cols-2 gap-y-4 py-6 font-mono text-xs sm:grid-cols-4"
@@ -341,7 +380,7 @@ See <span class="text-brand">\cite</span>&#123;einstein1905&#125;.<span
 					><span class="bg-brand size-1.5 rounded-full"></span> Nothing uploaded</span
 				>
 				<span class="flex items-center gap-2"
-					><span class="bg-brand size-1.5 rounded-full"></span> Compiles offline</span
+					><span class="bg-brand size-1.5 rounded-full"></span> Compiles locally</span
 				>
 				<span class="flex items-center gap-2"
 					><span class="bg-brand size-1.5 rounded-full"></span> No account</span
@@ -353,181 +392,214 @@ See <span class="text-brand">\cite</span>&#123;einstein1905&#125;.<span
 		</div>
 	</Reveal>
 
-	<!-- Why we built it -->
-	<section id="why" class="border-hairline border-b">
-		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
-			<div class="grid gap-12 lg:grid-cols-[0.9fr_1.1fr]">
-				<Reveal variant="up">
-					<span
-						class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
-					>
-						<span class="bg-brand size-1.5 rounded-full"></span> Why we built it
-					</span>
-					<h2
-						class="font-display mt-5 max-w-md text-3xl leading-[1.1] tracking-tight sm:text-[2.5rem]"
-					>
-						Overleaf got a lot of people writing LaTeX. Then it started getting in the way.
-					</h2>
-				</Reveal>
-
-				<Reveal
-					variant="up"
-					delay={80}
-					class="text-muted-foreground flex flex-col gap-5 text-base leading-relaxed"
-				>
-					<p>
-						Overleaf did something genuinely useful. It took LaTeX, which used to mean a huge
-						install and a wall of package errors, and put it one click away in a browser. Plenty of
-						people wrote their first paper because of it, and that is worth saying out loud.
-					</p>
-					<p>
-						The browser was also the catch. Your project lives on their servers. On a busy day the
-						editor lags on a long chapter. Let a build run too long on the free plan and you get a
-						timeout instead of a PDF. Want Git, a few more collaborators, or your full history back,
-						and you are reading a pricing page. None of that has much to do with writing LaTeX. It
-						has to do with running someone else's cloud.
-					</p>
-					<p>
-						GlyphX starts from the other end. The editor and the compiler run on your computer.
-						Opening a project means reading a folder. Saving means writing a file. There is no
-						server in the loop, so there is nothing to time out, nothing to subscribe to, and
-						nothing of yours sitting on a machine you cannot see.
-					</p>
-					<blockquote
-						class="border-brand text-foreground mt-2 border-l-2 pl-5 text-lg font-medium italic"
-					>
-						We wanted the thing Overleaf looked like it was going to be, before the pricing page
-						showed up.
-					</blockquote>
-				</Reveal>
-			</div>
-		</div>
-	</section>
-
-	<!-- Features -->
-	<section id="features" class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
-		<Reveal variant="up">
-			<span
-				class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
-			>
-				<span class="bg-brand size-1.5 rounded-full"></span> What you get
-			</span>
-			<h2 class="font-display mt-5 max-w-2xl text-3xl tracking-tight sm:text-4xl">
-				Built for the people who write the LaTeX, not the people who run the servers.
-			</h2>
-		</Reveal>
-
-		<div
-			class="bg-hairline border-hairline mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-2 lg:grid-cols-3"
-		>
-			{#each features as f, i (f.title)}
-				{@const Icon = f.icon}
-				<Reveal
-					as="article"
-					variant="up"
-					delay={i * 60}
-					class="bg-card group flex flex-col p-7 transition-colors hover:bg-muted/50"
-				>
-					<span
-						class="border-hairline bg-canvas text-foreground group-hover:text-brand group-hover:border-brand/30 mb-5 grid size-10 place-items-center rounded-lg border transition-colors"
-					>
-						<Icon class="size-5" />
-					</span>
-					<h3 class="text-base font-semibold">{f.title}</h3>
-					<p class="text-muted-foreground mt-2 text-sm leading-relaxed">{f.body}</p>
-				</Reveal>
-			{/each}
-		</div>
-	</section>
-
-	<!-- Editor showcase -->
-	<section class="border-hairline border-t">
-		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
-			<Reveal variant="up" class="mx-auto max-w-2xl text-center">
+	<!-- ============================================================
+	     The problem
+	     ============================================================ -->
+	<section class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
+		<div class="grid items-start gap-12 lg:grid-cols-[0.85fr_1.15fr]">
+			<Reveal variant="up" class="lg:sticky lg:top-28">
 				<span
-					class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
+					class="text-muted-foreground font-mono text-[11px] font-semibold tracking-[0.2em] uppercase"
 				>
-					<span class="bg-brand size-1.5 rounded-full"></span> The editor
+					Sound familiar
 				</span>
-				<h2 class="font-display mt-5 text-3xl tracking-tight sm:text-4xl">
-					Source on the left, the page on the right.
+				<h2 class="font-display mt-4 text-3xl tracking-tight sm:text-[2.6rem] sm:leading-[1.08]">
+					<SplitReveal mode="lines" triggerOnScroll class="block">
+						If you have lived in Overleaf, you know these.
+					</SplitReveal>
 				</h2>
 				<p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-					A focused editor and a live preview, side by side. Your equations, figures, and citations,
-					with nothing else competing for the screen.
+					Overleaf put LaTeX one click away, and that got a lot of people writing. Then the browser
+					started getting in the way. The same handful of messages kept coming back.
+				</p>
+				<p class="text-foreground mt-6 text-base leading-relaxed font-medium">
+					None of these are LaTeX problems. They are cloud problems. GlyphX has no cloud, so it has
+					none of them.
 				</p>
 			</Reveal>
 
-			<Reveal variant="blur" delay={100} class="mt-12">
+			<!-- Faux notifications panel: the actual messages a cloud editor shows you -->
+			<Reveal variant="up" delay={80}>
 				<div class="border-hairline bg-card shadow-craft-lg overflow-hidden rounded-2xl border">
-					<div class="border-hairline flex h-11 items-center gap-3 border-b px-4">
-						<span
-							class="bg-primary text-primary-foreground grid size-6 place-items-center rounded-md text-[13px] font-bold"
-							>G</span
-						>
-						<span class="text-muted-foreground/70 font-mono text-xs">thesis.tex</span>
-						<span
-							class="border-hairline text-muted-foreground ml-auto rounded-md border px-2 py-0.5 font-mono text-[10px] tracking-wider uppercase"
-							>LaTeX</span
-						>
+					<div class="border-hairline flex items-center gap-2 border-b px-4 py-3">
+						<span class="bg-destructive/60 size-2.5 rounded-full"></span>
+						<span class="bg-warning/60 size-2.5 rounded-full"></span>
+						<span class="bg-muted-foreground/40 size-2.5 rounded-full"></span>
+						<span class="text-muted-foreground ml-2 font-mono text-xs">overleaf.com</span>
+						<span class="text-muted-foreground/60 ml-auto font-mono text-[11px]">
+							{painPoints.length} notifications
+						</span>
 					</div>
-					<div class="grid grid-cols-1 lg:grid-cols-2">
-						<pre
-							class="text-muted-foreground border-hairline overflow-hidden border-b p-6 font-mono text-xs leading-[1.8] lg:border-b-0 lg:border-r"><span
-								class="text-brand">\documentclass</span
-							>&#123;article&#125;
-<span class="text-brand">\usepackage</span>&#123;amsmath&#125;
 
-<span class="text-brand">\title</span>&#123;On Local-First Typesetting&#125;
-<span class="text-brand">\author</span>&#123;A. Researcher&#125;
-
-<span class="text-brand">\begin</span>&#123;document&#125;
-<span class="text-brand">\maketitle</span>
-
-A consistent estimator satisfies
-
-<span class="text-brand">\begin</span>&#123;equation&#125;
-  \hat&#123;\theta&#125; \to \theta
-<span class="text-brand">\end</span>&#123;equation&#125;
-
-as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
-
-<span class="text-brand">\end</span>&#123;document&#125;</pre>
-						<div class="bg-canvas/50 p-8">
-							<div
-								class="text-muted-foreground/60 mb-4 font-mono text-[11px] tracking-widest uppercase"
+					{#each painPoints as p, i (p.quote)}
+						{@const Icon = p.icon}
+						<Reveal
+							as="div"
+							variant="up"
+							delay={i * 45}
+							class="border-hairline hover:bg-muted/40 flex items-stretch gap-4 border-b px-4 py-4 transition-colors last:border-b-0 sm:px-5"
+						>
+							<span class="w-[3px] shrink-0 rounded-full {toneClass[p.tone].bar}"></span>
+							<span
+								class="grid size-9 shrink-0 place-items-center rounded-lg {toneClass[p.tone].chip}"
 							>
-								Live preview
+								<Icon class="size-[18px]" />
+							</span>
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center gap-3">
+									<p class="text-foreground text-[15px] font-semibold">{p.quote}</p>
+									<span
+										class="border-hairline text-muted-foreground/70 ml-auto hidden shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wider uppercase sm:block"
+									>
+										{p.tag}
+									</span>
+								</div>
+								<p class="text-muted-foreground mt-1 text-sm leading-relaxed">{p.body}</p>
 							</div>
-							<h3 class="font-display mb-1 text-2xl">On Local-First Typesetting</h3>
-							<p class="text-muted-foreground mb-5 text-sm">A. Researcher</p>
-							<p class="text-muted-foreground leading-relaxed">A consistent estimator satisfies</p>
-							<div class="text-foreground my-4 text-center text-2xl italic">θ̂ → θ</div>
-							<p class="text-muted-foreground leading-relaxed">as the sample grows, see [1].</p>
-						</div>
-					</div>
-					<div
-						class="border-hairline text-muted-foreground flex h-8 items-center gap-4 border-t px-4 font-mono text-[11px]"
-					>
-						<span class="text-brand flex items-center gap-1.5"
-							><span class="bg-brand size-1.5 rounded-full"></span> Offline-ready</span
-						>
-						<span>saved on your device</span>
-						<span class="text-muted-foreground/50 ml-auto tabular-nums">Ln 14 · 312 chars</span>
-					</div>
+						</Reveal>
+					{/each}
 				</div>
 			</Reveal>
 		</div>
 	</section>
 
-	<!-- Local-first, not local-only -->
+	<!-- ============================================================
+	     Capabilities: a scroll-driven card stack (Motion Core).
+	     Each card sticks and scales as the next slides over it.
+	     ============================================================ -->
+	<section id="features" class="border-hairline border-t">
+		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
+			<Reveal variant="up" class="max-w-2xl">
+				<span
+					class="text-muted-foreground font-mono text-[11px] font-semibold tracking-[0.2em] uppercase"
+				>
+					What you get
+				</span>
+				<h2 class="font-display mt-4 text-3xl tracking-tight sm:text-[2.6rem] sm:leading-[1.08]">
+					<SplitReveal mode="lines" triggerOnScroll class="block">
+						Built for the people who write the LaTeX, not the people who run the servers.
+					</SplitReveal>
+				</h2>
+				<p class="text-muted-foreground mt-4 text-lg leading-relaxed">
+					Five things GlyphX does today. Scroll through them.
+				</p>
+			</Reveal>
+
+			<div class="mx-auto mt-14 max-w-[1000px]">
+				<CardStack topOffset={108} offset={16} scaleFactor={0.035}>
+					{#each capabilities as f, i (f.title)}
+						{@const Icon = f.icon}
+						<CardStackItem
+							class="border-hairline bg-card shadow-craft-lg mb-6 grid min-h-[420px] gap-8 overflow-hidden rounded-3xl border p-8 sm:min-h-[440px] sm:p-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center"
+						>
+							<div>
+								<div class="flex items-center gap-3">
+									<span
+										class="border-hairline bg-canvas text-brand grid size-11 place-items-center rounded-xl border"
+									>
+										<Icon class="size-5" />
+									</span>
+									<span class="text-muted-foreground/70 font-mono text-xs tracking-widest">
+										{String(i + 1).padStart(2, '0')} / {String(capabilities.length).padStart(
+											2,
+											'0'
+										)}
+									</span>
+								</div>
+								<h3 class="font-display mt-6 text-2xl tracking-tight sm:text-3xl">{f.title}</h3>
+								<p class="text-muted-foreground mt-3 max-w-md text-base leading-relaxed">
+									{f.body}
+								</p>
+							</div>
+
+							<!-- Per-card visual -->
+							<div
+								class="border-hairline bg-canvas/60 relative hidden overflow-hidden rounded-2xl border p-6 lg:block"
+							>
+								{#if f.visual === 'code'}
+									<pre class="text-muted-foreground font-mono text-[12px] leading-[1.8]"><span
+											class="text-brand">\section</span
+										>&#123;Results&#125;
+
+We estimate <span class="text-foreground">$\hat&#123;\theta&#125;$</span> with
+
+<span class="text-brand">\begin</span>&#123;equation&#125;
+  E = m c^2
+<span class="text-brand">\end</span>&#123;equation&#125;</pre>
+								{:else if f.visual === 'compile'}
+									<div class="flex flex-col gap-3 font-mono text-xs">
+										<div class="text-muted-foreground flex items-center gap-2">
+											<IconBolt class="text-brand size-4" /> tectonic · local engine
+										</div>
+										<div class="bg-brand/10 h-1.5 w-full overflow-hidden rounded-full">
+											<div class="bg-brand h-full w-2/3 rounded-full"></div>
+										</div>
+										<div class="text-brand flex items-center gap-2">
+											<IconCheck class="size-4" /> compiled in 0.41s
+										</div>
+										<div class="text-muted-foreground/70">no queue · no server · offline</div>
+									</div>
+								{:else if f.visual === 'split'}
+									<div class="grid grid-cols-2 gap-3 text-xs">
+										<pre
+											class="text-muted-foreground border-hairline rounded-lg border p-3 font-mono leading-relaxed"><span
+												class="text-brand">\hat</span
+											>&#123;\theta&#125; \to \theta</pre>
+										<div class="border-hairline grid place-items-center rounded-lg border p-3">
+											<span class="text-foreground text-lg italic">θ̂ → θ</span>
+										</div>
+									</div>
+								{:else if f.visual === 'git'}
+									<div class="flex flex-col gap-2 font-mono text-xs">
+										<div class="text-muted-foreground flex items-center gap-2">
+											<IconGitBranch class="text-brand size-4" /> main · 2 changes
+										</div>
+										<div class="text-muted-foreground flex items-center gap-2">
+											<span class="text-warning">M</span> chapter3.tex
+										</div>
+										<div class="text-muted-foreground flex items-center gap-2">
+											<span class="text-success">+</span> figures/plot.pdf
+										</div>
+										<div
+											class="bg-primary text-primary-foreground mt-1 w-fit rounded-md px-3 py-1 text-[11px] font-semibold"
+										>
+											Commit
+										</div>
+									</div>
+								{:else}
+									<div class="flex flex-col gap-3">
+										<div class="text-foreground flex items-center gap-2 text-sm font-medium">
+											<IconLock class="text-brand size-4" /> Nothing uploaded
+										</div>
+										<div class="text-foreground flex items-center gap-2 text-sm font-medium">
+											<IconWifiOff class="text-brand size-4" /> Works offline
+										</div>
+										<div class="text-foreground flex items-center gap-2 text-sm font-medium">
+											<IconFolder class="text-brand size-4" /> Your folder, your disk
+										</div>
+										<p class="text-muted-foreground/70 mt-1 text-xs leading-relaxed">
+											It sits on your machine and nowhere else.
+										</p>
+									</div>
+								{/if}
+							</div>
+						</CardStackItem>
+					{/each}
+				</CardStack>
+			</div>
+		</div>
+	</section>
+
+	<!-- ============================================================
+	     Where your data goes: local core vs. your accounts
+	     ============================================================ -->
 	<section class="border-hairline border-t">
 		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
 			<Reveal variant="up" class="max-w-2xl">
 				<span
 					class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
 				>
-					<span class="bg-brand size-1.5 rounded-full"></span> How it fits together
+					Where your data goes
 				</span>
 				<h2 class="font-display mt-5 text-3xl tracking-tight sm:text-4xl">
 					Local-first does not mean cut off from the cloud.
@@ -539,21 +611,70 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 				</p>
 			</Reveal>
 
-			<div
-				class="bg-hairline border-hairline mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-3"
-			>
-				{#each model as m, i (m.title)}
-					{@const Icon = m.icon}
-					<Reveal as="article" variant="up" delay={i * 70} class="bg-card flex flex-col p-7">
+			<div class="mt-12 grid gap-4 lg:grid-cols-2">
+				<!-- Stays local -->
+				<Reveal variant="up" class="border-hairline bg-card flex flex-col rounded-2xl border p-7">
+					<div class="mb-6 flex items-center gap-2">
+						<span class="bg-brand size-1.5 rounded-full"></span>
 						<span
-							class="border-hairline bg-canvas text-brand mb-5 grid size-10 place-items-center rounded-lg border"
+							class="text-foreground font-mono text-[11px] font-semibold tracking-[0.16em] uppercase"
+							>On your machine</span
 						>
-							<Icon class="size-5" />
-						</span>
-						<h3 class="text-base font-semibold">{m.title}</h3>
-						<p class="text-muted-foreground mt-2 text-sm leading-relaxed">{m.body}</p>
-					</Reveal>
-				{/each}
+					</div>
+					<div class="flex flex-col gap-5">
+						{#each local as m (m.title)}
+							{@const Icon = m.icon}
+							<div class="flex items-start gap-3">
+								<span
+									class="border-hairline bg-canvas text-brand grid size-9 shrink-0 place-items-center rounded-lg border"
+								>
+									<Icon class="size-[18px]" />
+								</span>
+								<div>
+									<h3 class="text-sm font-semibold">{m.title}</h3>
+									<p class="text-muted-foreground mt-0.5 text-sm leading-relaxed">{m.body}</p>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</Reveal>
+
+				<!-- Through your accounts -->
+				<Reveal
+					variant="up"
+					delay={90}
+					class="border-hairline bg-card/60 flex flex-col rounded-2xl border p-7"
+				>
+					<div class="mb-6 flex items-center gap-2">
+						<span class="bg-muted-foreground/40 size-1.5 rounded-full"></span>
+						<span
+							class="text-muted-foreground font-mono text-[11px] font-semibold tracking-[0.16em] uppercase"
+							>Through your accounts</span
+						>
+					</div>
+					<div class="flex flex-col gap-5">
+						{#each connected as m (m.title)}
+							{@const Icon = m.icon}
+							<div class="flex items-start gap-3">
+								<span
+									class="border-hairline bg-canvas text-muted-foreground grid size-9 shrink-0 place-items-center rounded-lg border"
+								>
+									<Icon class="size-[18px]" />
+								</span>
+								<div class="flex-1">
+									<div class="flex items-center gap-2">
+										<h3 class="text-sm font-semibold">{m.title}</h3>
+										<span
+											class="border-hairline text-muted-foreground rounded-full border px-2 py-0.5 font-mono text-[9px] font-semibold tracking-wider uppercase"
+											>{m.tag}</span
+										>
+									</div>
+									<p class="text-muted-foreground mt-0.5 text-sm leading-relaxed">{m.body}</p>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</Reveal>
 			</div>
 
 			<Reveal variant="up" delay={120}>
@@ -571,110 +692,16 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 		</div>
 	</section>
 
-	<!-- Bring your own stack (integration roadmap) -->
-	<section class="border-hairline border-t">
-		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
-			<Reveal variant="up" class="max-w-2xl">
-				<span
-					class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
-				>
-					<span class="bg-brand size-1.5 rounded-full"></span> On the roadmap
-				</span>
-				<h2 class="font-display mt-5 text-3xl tracking-tight sm:text-4xl">
-					Plug GlyphX into the tools you already trust.
-				</h2>
-				<p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-					Instead of locking you into one cloud, GlyphX connects to yours. Here is where it is
-					headed.
-				</p>
-			</Reveal>
-
-			<div class="mt-12 grid gap-4 sm:grid-cols-2">
-				{#each integrations as it, i (it.title)}
-					{@const Icon = it.icon}
-					<Reveal
-						as="article"
-						variant="up"
-						delay={i * 60}
-						class="border-hairline bg-card group flex flex-col rounded-2xl border p-7 transition-transform duration-300 hover:-translate-y-0.5"
-					>
-						<div class="flex items-center justify-between">
-							<span
-								class="border-hairline bg-canvas text-foreground group-hover:text-brand grid size-11 place-items-center rounded-xl border transition-colors"
-							>
-								<Icon class="size-5" />
-							</span>
-							<span
-								class="border-hairline text-muted-foreground rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase"
-							>
-								{it.tag}
-							</span>
-						</div>
-						<h3 class="mt-5 text-base font-semibold">{it.title}</h3>
-						<p class="text-muted-foreground mt-2 text-sm leading-relaxed">{it.body}</p>
-					</Reveal>
-				{/each}
-			</div>
-
-			<Reveal variant="up" delay={120}>
-				<p class="text-muted-foreground mt-8 max-w-2xl text-base leading-relaxed">
-					These are the next things we are building. The rule behind all of them stays the same:
-					your providers, your keys, your data.
-				</p>
-			</Reveal>
-		</div>
-	</section>
-
-	<!-- Sound familiar (pain points) -->
-	<section class="border-hairline border-t">
-		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
-			<Reveal variant="up" class="max-w-2xl">
-				<span
-					class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
-				>
-					<span class="bg-brand size-1.5 rounded-full"></span> Sound familiar
-				</span>
-				<h2 class="font-display mt-5 text-3xl tracking-tight sm:text-4xl">
-					If you have lived in Overleaf for a while, you know these.
-				</h2>
-				<p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-					We kept hearing the same handful of complaints, and ran into most of them ourselves. Here
-					is the short list.
-				</p>
-			</Reveal>
-
-			<div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{#each painPoints as p, i (p.quote)}
-					<Reveal
-						as="article"
-						variant="up"
-						delay={i * 50}
-						class="border-hairline bg-card flex flex-col rounded-xl border p-6 transition-transform duration-300 hover:-translate-y-0.5"
-					>
-						<span class="text-brand/30 font-display text-4xl leading-none">&ldquo;</span>
-						<p class="text-foreground -mt-2 text-base font-semibold">{p.quote}</p>
-						<p class="text-muted-foreground mt-2 text-sm leading-relaxed">{p.body}</p>
-					</Reveal>
-				{/each}
-			</div>
-
-			<Reveal variant="up" delay={120}>
-				<p class="text-muted-foreground mt-10 max-w-2xl text-base leading-relaxed">
-					None of these are LaTeX problems. They are cloud problems. GlyphX does not have a cloud,
-					so it does not have them.
-				</p>
-			</Reveal>
-		</div>
-	</section>
-
-	<!-- Comparison -->
+	<!-- ============================================================
+	     Comparison
+	     ============================================================ -->
 	<section id="compare" class="border-hairline border-t">
 		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
 			<Reveal variant="up">
 				<span
 					class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
 				>
-					<span class="bg-brand size-1.5 rounded-full"></span> Compare
+					Compare
 				</span>
 				<h2 class="font-display mt-5 max-w-2xl text-3xl tracking-tight sm:text-4xl">
 					Private like your laptop. Easy like the cloud was supposed to be.
@@ -735,14 +762,16 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 		</div>
 	</section>
 
-	<!-- How it works -->
+	<!-- ============================================================
+	     How it works
+	     ============================================================ -->
 	<section class="border-hairline border-t">
 		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
 			<Reveal variant="up">
 				<span
 					class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
 				>
-					<span class="bg-brand size-1.5 rounded-full"></span> How it works
+					How it works
 				</span>
 				<h2 class="font-display mt-5 max-w-2xl text-3xl tracking-tight sm:text-4xl">
 					Three steps, none of which involve a login.
@@ -750,7 +779,7 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 			</Reveal>
 
 			<div
-				class="mt-12 grid gap-px overflow-hidden rounded-2xl bg-hairline border-hairline border sm:grid-cols-3"
+				class="bg-hairline border-hairline mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-3"
 			>
 				{#each steps as s, i (s.n)}
 					<Reveal as="article" variant="up" delay={i * 80} class="bg-card flex flex-col p-7">
@@ -763,7 +792,48 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 		</div>
 	</section>
 
-	<!-- FAQ -->
+	<!-- ============================================================
+	     Roadmap note (honest about what is not built yet)
+	     ============================================================ -->
+	<section class="border-hairline border-t">
+		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
+			<Reveal
+				variant="up"
+				class="border-hairline bg-card flex flex-col gap-4 rounded-2xl border p-8 sm:flex-row sm:items-start sm:gap-6 sm:p-10"
+			>
+				<span
+					class="border-hairline bg-canvas text-foreground grid size-11 shrink-0 place-items-center rounded-xl border"
+				>
+					<IconSparkles class="size-5" />
+				</span>
+				<div class="max-w-2xl">
+					<h2 class="font-display text-2xl tracking-tight sm:text-3xl">Still to come.</h2>
+					<p class="text-muted-foreground mt-3 text-base leading-relaxed">
+						A bring-your-own AI key, Dropbox and Google Drive sync, and project sharing are the next
+						things we are building. They are not in the app yet, and we would rather say so than
+						pretend otherwise. The rule behind all of them stays the same: your providers, your
+						keys, your data.
+					</p>
+					<div class="mt-5 flex flex-wrap gap-2">
+						{#each [{ icon: IconKey, label: 'Your AI key' }, { icon: IconBrandDropbox, label: 'Cloud sync' }, { icon: IconShare, label: 'Sharing' }] as r (r.label)}
+							{@const Icon = r.icon}
+							<span
+								class="border-hairline text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] font-medium"
+							>
+								<Icon class="size-3.5" />
+								{r.label}
+								<span class="text-muted-foreground/50">· planned</span>
+							</span>
+						{/each}
+					</div>
+				</div>
+			</Reveal>
+		</div>
+	</section>
+
+	<!-- ============================================================
+	     FAQ
+	     ============================================================ -->
 	<section id="faq" class="border-hairline border-t">
 		<div class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-28">
 			<div class="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
@@ -771,7 +841,7 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 					<span
 						class="text-muted-foreground inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.18em] uppercase"
 					>
-						<span class="bg-brand size-1.5 rounded-full"></span> FAQ
+						FAQ
 					</span>
 					<h2 class="font-display mt-5 max-w-sm text-3xl tracking-tight sm:text-4xl">
 						The questions people ask first.
@@ -795,7 +865,9 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 		</div>
 	</section>
 
-	<!-- CTA band -->
+	<!-- ============================================================
+	     CTA band
+	     ============================================================ -->
 	<section class="mx-auto max-w-[1140px] px-5 py-20 sm:px-6 sm:py-24">
 		<Reveal variant="scale">
 			<div
@@ -817,6 +889,7 @@ as the sample grows, see <span class="text-brand">\cite</span>&#123;ref&#125;.
 					<div class="mt-9 flex flex-wrap justify-center gap-3">
 						<a
 							href={resolve('/download')}
+							onclick={() => trackEvent('cta_download_click', { location: 'footer_cta' })}
 							class="bg-card text-foreground group inline-flex h-12 items-center gap-2 rounded-lg px-6 text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
 						>
 							<IconDownload class="size-4" /> Download GlyphX

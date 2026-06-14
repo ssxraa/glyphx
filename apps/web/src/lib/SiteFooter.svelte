@@ -4,7 +4,7 @@
 	import { IconBrandGithub } from '@tabler/icons-svelte';
 
 	const home = resolve('/');
-	const repo = 'https://github.com/kanakkholwal/glyph';
+	const repo = 'https://github.com/kanakkholwal/glyphx';
 	const year = 2026;
 
 	const groups = [

@@ -25,6 +25,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PUBLIC_GA_ID: "G-X1BF4S5L5L"
 
 jobs:
   deploy:
@@ -65,6 +66,10 @@ jobs:
 
       - name: Build apps/web
         run: pnpm --filter @glyphx/web build
+        env:
+          NODE_ENV: production
+          PUBLIC_GA_ID: ${{ env.PUBLIC_GA_ID }}
+          # PUBLIC_TEXLIVE_ENDPOINT: ${{ vars.PUBLIC_TEXLIVE_ENDPOINT }}
 
       - name: Deploy via Wrangler
         uses: cloudflare/wrangler-action@v3

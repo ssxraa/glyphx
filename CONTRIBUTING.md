@@ -6,7 +6,7 @@ ideas, docs fixes, and pull requests are all welcome.
 
 ## Ways to contribute
 
-- **Found a bug or have an idea?** Open an [issue](https://github.com/kanakkholwal/glyph/issues) — a clear description and steps to reproduce go a long way.
+- **Found a bug or have an idea?** Open an [issue](https://github.com/kanakkholwal/glyphx/issues) — a clear description and steps to reproduce go a long way.
 - **Want to write code?** Comment on the issue you'd like to take (or open one first for anything non-trivial), then send a pull request. Small, focused PRs are easiest to review.
 - **Docs and copy** count too — typos, unclear wording, and missing setup steps are all fair game.
 
@@ -45,7 +45,7 @@ You can work on the **web app and shared UI without Rust** — skip the Tauri bi
 ## Getting set up
 
 ```bash
-git clone https://github.com/kanakkholwal/glyph.git
+git clone https://github.com/kanakkholwal/glyphx.git
 cd glyph
 pnpm install        # installs everything across the monorepo
 ```

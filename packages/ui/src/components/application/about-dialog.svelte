@@ -1,7 +1,7 @@
 <script lang="ts" module>
 	/** Where GlyphX lives — kept here so the About box and any future "Help"
 	 * surface read the same canonical links. */
-	export const GLYPHX_REPO = "https://github.com/kanakkholwal/glyph";
+	export const GLYPHX_REPO = "https://github.com/kanakkholwal/glyphx";
 	export const GLYPHX_SITE = "https://glyphx.nexonauts.com";
 </script>
 

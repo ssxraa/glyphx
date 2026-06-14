@@ -4,8 +4,9 @@
 
 ### The LaTeX editor Overleaf should have been.
 
-Write papers, proofs, and theses in real LaTeX — on your own machine.
-Your files, your compiler, your privacy. Nothing has to pass through anyone's servers.
+Write papers, proofs, and theses in real LaTeX, on a tool that runs on your own
+computer. Your files stay on your disk, your work compiles without a server, and
+nothing has to leave your machine.
 
 **Free in your browser · Free as a desktop app · Open source**
 
@@ -13,66 +14,110 @@ Your files, your compiler, your privacy. Nothing has to pass through anyone's se
 
 ---
 
-## What GlyphX is
+## What it is
 
-GlyphX is a place to write LaTeX that stays out of your way and stays on your computer.
+GlyphX is a place to write LaTeX that keeps your work where you can see it: on
+your computer.
 
-There are two ways to use it, and they share the same editor:
+There are two ways to use it, and they run the same editor.
 
-- **In your browser** — open it, start typing, see the page render beside you. No account, nothing to install.
-- **As a desktop app** — everything runs locally: the editor, the compiler, and your files. Works with the wifi off.
+**In your browser.** Open the page, start typing, and watch the document render
+beside you. No account, nothing to install.
 
-It's built for researchers, PhD students, and anyone whose work happens to be a long document full of math.
+**As a desktop app.** The editor, the compiler, and your files all live on your
+machine. It keeps working with the wifi switched off.
 
-## Why it exists
+It is built for the people who spend weeks inside one long document full of math:
+researchers, PhD students, and anyone writing a thesis, a proof, or a paper.
 
-If you've used a hosted LaTeX editor, you've probably hit some of these:
+## Why we built it
 
-- _"Compile timed out."_ — a long chapter stops building right when you need the PDF.
-- _"Upgrade to keep working."_ — history, Git, and sync sit behind a paywall.
-- _"Why is the editor lagging?"_ — every keystroke round-trips to a server.
-- _"Is my draft actually private?"_ — your unpublished work lives on machines you don't own.
-- _"I have no signal."_ — no connection means no editor, even to fix one line.
+Overleaf did something useful. It took LaTeX, which used to mean a heavy install
+and a wall of package errors, and put it one click away. A lot of people wrote
+their first paper because of that.
 
-GlyphX is the answer to all of those: keep the heavy, private work on your machine, and reach the cloud only through accounts you already own.
+The browser was also the catch. Your project lives on someone else's servers. A
+long chapter starts to lag because every keystroke makes a round trip. Let a
+build run too long on the free plan and you get a timeout instead of a PDF. Want
+version history, a few more collaborators, or Git, and you are reading a pricing
+page. None of that has much to do with writing LaTeX. It has to do with running a
+cloud.
 
-## What makes it different
+GlyphX starts from the other side. The editor and the compiler run on your
+computer. Opening a project means reading a folder. Saving means writing a file.
+There is no server in the loop, so there is nothing to time out, nothing to
+subscribe to, and nothing of yours sitting on a machine you cannot see.
 
-- **Real LaTeX, not a lookalike.** Full math, figures, BibTeX, and the packages your journal template leans on. The PDF you get is the PDF your reviewer gets.
-- **Compiles on your machine.** No shared queue, no server, no timeout the night before a deadline. The renderer keeps up while you type.
-- **Your folder is the project.** A project is just a directory on disk. Open it, edit it, drag files around, and back it up the way you back up anything else.
-- **Private by default.** Unpublished results, a thesis under embargo, a grant draft — none of it is uploaded, indexed, or fed to a model. It sits on your disk and nowhere else.
-- **Works offline.** On a flight, in a basement lab, on a train with no signal — the editor and the live preview never wait on a connection.
-- **Free, and the source is open.** Both the browser editor and the desktop app are free. You can read every line of it here.
+## What you can do with it
 
-## How it works
+- **Write real LaTeX.** Full math, figures, BibTeX, and the packages a journal
+  template or thesis class actually needs. What you write is standard `.tex`
+  that any LaTeX setup can read, and the PDF you get is the PDF your reviewer
+  gets.
+- **Compile on your own machine.** The desktop app ships with a LaTeX engine
+  ([Tectonic](https://tectonic-typesetting.github.io/)) built in. No multi
+  gigabyte TeX install to fight, no shared build queue, no timeout the night
+  before a deadline. The preview keeps up while you type.
+- **See the page as you write.** Source on the left, the rendered document on the
+  right, updating as you go. Double click a spot in the PDF to jump to the line
+  that produced it, and jump the other way too.
+- **Open a folder and start.** A project is a normal directory of `.tex` and
+  `.bib` files. Open it, edit it, drag files between folders, and back it up the
+  way you back up everything else.
+- **Use Git without paying for it.** The desktop app has a built in Git client:
+  stage and commit, see a side by side diff, browse history, clone a repository,
+  and push, pull, or sync with your own remote. Real version control, no
+  subscription tier.
+- **Read your own errors.** When a build fails, the problems panel lists the
+  errors with line numbers you can click. The last good PDF stays on screen
+  instead of going blank.
+- **Stay private.** Unpublished results, a grant draft, a thesis under embargo:
+  none of it is uploaded, indexed, or fed to a model. It sits on your disk and
+  nowhere else.
 
-GlyphX splits the work in a simple way: the heavy and private parts stay local, and the cloud is reached through _your_ accounts.
+## Where your data goes
 
-- **Compiling stays on your machine.** The desktop app ships with the LaTeX engine ([Tectonic](https://tectonic-typesetting.github.io/)) built in, and the browser editor compiles right in the page. There's no multi-gigabyte TeX install to fight, and no build sitting on someone else's server. (Support for the modern [Typst](https://typst.app/) engine is on the way too.)
-- **Sync through your own cloud.** Connect the storage you already use. Your files move through your GitHub, Dropbox, or Drive — never through us.
-- **Your AI, your key.** Bring an API key from a provider you trust. Requests go straight from the app to them, on your own account and billing. We're never in the middle.
+The heavy and private work stays local. You reach the cloud only through accounts
+you already own.
+
+- **Compiling is local.** The engine runs on your computer. There is no build
+  sitting on our servers and nothing to time out.
+- **History is yours.** Commits live in your own Git repository, on your disk and
+  on the remote you choose.
+- **Sharing is opt in.** Nothing leaves your machine unless you send it. We never
+  hold a copy of work you did not choose to share.
 
 ## Getting started
 
-- **Try it in your browser** — no download, no account.
-- **Download the desktop app** — for macOS, Windows, and Linux, from the [Releases](https://github.com/kanakkholwal/glyph/releases) page.
+- **Try it in your browser.** No download and no account.
+- **Download the desktop app** for macOS, Windows, and Linux from the
+  [Releases](https://github.com/kanakkholwal/glyphx/releases) page. The desktop
+  app updates itself, so you stay on the latest build without reinstalling.
 
-Already have Overleaf projects? They're plain LaTeX underneath — download the project folder, drop it into GlyphX, and keep writing.
+Already have Overleaf projects? They are plain LaTeX underneath. Download the
+project folder, drop it into GlyphX, and keep writing.
 
 ## On the roadmap
 
-These are planned, not shipped yet — and we'd rather say so:
+These are planned, not shipped, and we would rather say so plainly.
 
-- **Bring your own AI provider** — rephrase a paragraph, draft an equation, or decode a compiler error, all on your own account.
-- **Git and GitHub, built in** — commit as you write and push to your own repository. Real history and branches, no paywall.
-- **Dropbox and Google Drive sync** — keep a project in cloud storage you already pay for and pick it up on another machine.
-- **Share on your terms** — hand a project to a collaborator, stored only while it's shared and only under your account.
+- **Bring your own AI key.** Connect an API key from a provider you trust and use
+  it to rephrase a paragraph, draft an equation, or decode a compiler error. The
+  request goes from the app straight to your provider, on your own account and
+  billing.
+- **Dropbox and Google Drive sync.** Keep a project in cloud storage you already
+  pay for and pick it up on another machine, under your own account.
+- **Share a project.** Hand a project to a collaborator from the desktop app,
+  stored only while it is shared and only under your account.
 
 ## Contributing
 
-GlyphX is open source and contributions are welcome — bug reports, ideas, and pull requests alike. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for how to set up the project on your machine and submit a change.
+GlyphX is open source, and bug reports, ideas, and pull requests are all welcome.
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for how to set the project up on your
+machine and submit a change.
 
 ## License
 
-GlyphX is licensed under the **[GNU General Public License v3.0](LICENSE)**. You're free to use, study, share, and modify it; if you distribute a modified version, it has to stay under the same license.
+GlyphX is licensed under the **[GNU General Public License v3.0](LICENSE)**. You
+are free to use, study, share, and modify it. If you distribute a modified
+version, it has to stay under the same license.
