@@ -6,10 +6,12 @@
 		unborn: boolean;
 		/** Upstream tracking branch (e.g. `origin/main`), if configured. */
 		upstream?: string | null;
-		/** Commits ahead of upstream (undefined / null when no upstream). */
+		/** Commits ahead of the remote (undefined / null when not applicable). */
 		ahead?: number | null;
-		/** Commits behind upstream. */
+		/** Commits behind the remote. */
 		behind?: number | null;
+		/** True while a merge is in progress (working tree may have conflicts). */
+		merging?: boolean;
 	};
 
 	/** Host-injected Git backend (desktop = Tauri / gitoxide). */
@@ -45,8 +47,15 @@
 		fetch: (root: string, url?: string) => Promise<void>;
 		/** Fast-forward pull (system git); `url` carries token auth. */
 		pull: (root: string, url?: string) => Promise<string>;
-		/** Push current branch (system git); `url` carries token auth. */
-		push: (root: string, url?: string, branch?: string) => Promise<string>;
+		/** Push current branch (system git); `url` carries token auth, `remote` names the tracking ref to refresh. */
+		push: (root: string, url?: string, branch?: string, remote?: string) => Promise<string>;
+		/** Sync = pull (merge) then push; reports merge conflicts instead of throwing. */
+		sync: (
+			root: string,
+			url?: string,
+			branch?: string,
+			remote?: string
+		) => Promise<{ conflicts: boolean; message: string }>;
 		/** Native confirmation dialog (desktop wires Tauri's); falls back to window.confirm. */
 		confirm?: (message: string, title?: string) => Promise<boolean>;
 	};
@@ -72,7 +81,6 @@
 		IconGitBranch,
 		IconGitCommit,
 		IconRefresh,
-		IconHistory,
 		IconPlus,
 		IconMinus,
 		IconArrowBackUp,
@@ -206,6 +214,15 @@
 	// View mode is persisted in settings and toggled from the side-panel header.
 	let collapsed = $state(new Set<string>());
 
+	// Collapsible top-level sections (like the Explorer's Files / Outline).
+	type SectionKey = 'staged' | 'changes' | 'remotes' | 'history';
+	let sections = $state<Record<SectionKey, boolean>>({
+		staged: true,
+		changes: true,
+		remotes: true,
+		history: true
+	});
+
 	type TreeNode = {
 		/** Display segment — a folder may be a compressed chain like `src/lib`. */
 		name: string;
@@ -269,8 +286,15 @@
 
 	const stagedTree = $derived(buildTree(staged));
 	const unstagedTree = $derived(buildTree(unstaged));
+	// Unresolved merge conflicts block committing until they're resolved + staged.
+	const hasConflicts = $derived(changes.some((c) => c.status === 'conflicted'));
 	const canCommit = $derived(
-		isRepo && !busy && message.trim().length > 0 && staged.length > 0
+		isRepo &&
+			!busy &&
+			!hasConflicts &&
+			staged.length > 0 &&
+			// During a merge an empty message is fine (we fill a default).
+			(message.trim().length > 0 || !!head?.merging)
 	);
 
 	// Smart primary action (VS Code-style): commit while there are changes;
@@ -434,7 +458,9 @@
 	function commit() {
 		if (!canCommit) return;
 		run(async () => {
-			await git!.commit(root!, message.trim());
+			const msg =
+				message.trim() || (head?.merging ? `Merge ${head?.upstream ?? 'remote branch'}` : '');
+			await git!.commit(root!, msg);
 			message = '';
 		});
 	}
@@ -465,16 +491,21 @@
 	const doPush = () => {
 		if (!requireRemote('Push')) return;
 		runRemote('Push', async () => {
-			remoteMsg = (await git!.push(root!, authedUrl(), head?.branch ?? undefined)) || 'Pushed.';
+			remoteMsg =
+				(await git!.push(root!, authedUrl(), head?.branch ?? undefined, activeRemote?.name)) ||
+				'Pushed.';
 		});
 	};
-	/** Pull then push — VS Code's "Sync Changes". */
+	/** Pull (merge) then push — VS Code's "Sync Changes". Surfaces conflicts. */
 	const doSync = () => {
 		if (!requireRemote('Sync')) return;
 		runRemote('Sync', async () => {
-			await git!.pull(root!, authedUrl());
-			await git!.push(root!, authedUrl(), head?.branch ?? undefined);
-			remoteMsg = 'Synced with remote.';
+			const r = await git!.sync(root!, authedUrl(), head?.branch ?? undefined, activeRemote?.name);
+			if (r.conflicts) {
+				gitError = { title: 'Merge conflicts', message: r.message };
+			} else {
+				remoteMsg = r.message || 'Synced with remote.';
+			}
 		});
 	};
 	/** Run whatever the smart primary button currently represents. */
@@ -528,14 +559,16 @@
 		deleted: 'D',
 		untracked: 'U',
 		added: 'A',
-		renamed: 'R'
+		renamed: 'R',
+		conflicted: '!'
 	};
 	const STATUS_CLASS: Record<string, string> = {
 		modified: 'text-warning',
 		deleted: 'text-destructive',
 		untracked: 'text-success',
 		added: 'text-success',
-		renamed: 'text-brand'
+		renamed: 'text-brand',
+		conflicted: 'text-destructive'
 	};
 
 	function when(secs: number): string {
@@ -650,6 +683,26 @@
 	{/if}
 {/snippet}
 
+<!-- Collapsible section header (chevron + uppercase title), like the Explorer's
+     Files / Outline headers. Action buttons sit beside it as siblings. -->
+{#snippet secHead(title: string, key: SectionKey, count: number | null)}
+	<button
+		class="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded text-[10px] font-semibold tracking-wide uppercase transition-colors"
+		aria-expanded={sections[key]}
+		onclick={() => (sections[key] = !sections[key])}
+	>
+		<IconChevronRight
+			size={12}
+			class="shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] {sections[
+				key
+			]
+				? 'rotate-90'
+				: ''}"
+		/>
+		<span class="truncate">{title}{count != null ? ` (${count})` : ''}</span>
+	</button>
+{/snippet}
+
 {#if !root}
 	<div class="text-muted-foreground flex flex-col items-center gap-2 px-2 py-8 text-center text-xs">
 		<IconGitBranch size={22} />
@@ -683,18 +736,38 @@
 			{/if}
 		</div>
 
-		<!-- Commit box (shown while there are changes); once the tree is clean the
-		     primary button becomes Push / Pull / Sync if local & remote differ. -->
-		{#if hasChanges}
+		<!-- Merge-in-progress banner -->
+		{#if head?.merging}
+			<div
+				class="border-warning/40 bg-warning/10 text-warning flex items-start gap-1.5 rounded border px-2 py-1.5 text-[11px] leading-snug"
+			>
+				<IconAlertTriangle size={13} class="mt-px shrink-0" />
+				<span>
+					{hasConflicts
+						? 'Merge has conflicts — resolve the marked files, stage them, then commit to finish.'
+						: 'Merge in progress — commit to finish it.'}
+				</span>
+			</div>
+		{/if}
+
+		<!-- Commit box (shown while there are changes / a merge is underway); once
+		     the tree is clean the primary button becomes Push / Pull / Sync. -->
+		{#if hasChanges || head?.merging}
 			<Textarea
 				bind:value={message}
-				placeholder="Commit message"
+				placeholder={head?.merging ? 'Merge commit message (optional)' : 'Commit message'}
 				rows={2}
 				class="resize-none text-xs"
 			/>
 			<Button size="sm" disabled={!canCommit} onclick={commit}>
 				<IconGitCommit size={14} />
-				{busy ? 'Committing…' : `Commit${staged.length ? ` ${staged.length}` : ''}`}
+				{#if busy}
+					Committing…
+				{:else if head?.merging}
+					Commit Merge
+				{:else}
+					Commit{staged.length ? ` ${staged.length}` : ''}
+				{/if}
 			</Button>
 		{:else if syncAction === 'push'}
 			<Button size="sm" disabled={busy} onclick={runPrimarySync}>
@@ -723,36 +796,35 @@
 
 		<!-- Staged -->
 		{#if staged.length}
-			<div class="mt-1 flex flex-col gap-0.5">
-				<div class="flex items-center px-0.5">
-					<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-						Staged Changes ({staged.length})
-					</span>
+			<div class="border-border/60 mt-1 border-t pt-1.5">
+				<div class="flex items-center gap-0.5 px-0.5">
+					{@render secHead('Staged Changes', 'staged', staged.length)}
 					<Button
 						variant="ghost"
 						size="xs"
-						class="ml-auto"
 						disabled={busy}
 						onclick={() => unstage(staged.map((c) => c.path))}
 					>
 						Unstage all
 					</Button>
 				</div>
-				{@render changeSection(staged, stagedTree, 'unstage')}
+				{#if sections.staged}
+					<div transition:slide={{ duration: 200, easing: cubicOut }} class="mt-0.5">
+						{@render changeSection(staged, stagedTree, 'unstage')}
+					</div>
+				{/if}
 			</div>
 		{/if}
 
 		<!-- Changes (unstaged) -->
-		<div class="mt-1 flex flex-col gap-0.5">
-			<div class="flex items-center px-0.5">
-				<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-					Changes{unstaged.length ? ` (${unstaged.length})` : ''}
-				</span>
+		<div class="border-border/60 mt-1 border-t pt-1.5">
+			<div class="flex items-center gap-0.5 px-0.5">
+				{@render secHead('Changes', 'changes', unstaged.length || null)}
 				{#if unstaged.length}
 					<Button
 						variant="ghost"
 						size="xs"
-						class="text-muted-foreground hover:text-destructive ml-auto"
+						class="text-muted-foreground hover:text-destructive"
 						title="Discard all changes"
 						disabled={busy}
 						onclick={() => discard(unstaged.map((c) => c.path))}
@@ -769,28 +841,30 @@
 					</Button>
 				{/if}
 			</div>
-			{#if !unstaged.length}
-				<p class="text-muted-foreground/70 px-0.5 py-1 text-[11px]">
-					{loading ? 'Checking…' : staged.length ? 'Nothing else to stage.' : 'No changes.'}
-				</p>
-			{:else}
-				{@render changeSection(unstaged, unstagedTree, 'stage')}
+			{#if sections.changes}
+				<div transition:slide={{ duration: 200, easing: cubicOut }} class="mt-0.5">
+					{#if !unstaged.length}
+						<p class="text-muted-foreground/70 px-0.5 py-1 text-[11px]">
+							{loading ? 'Checking…' : staged.length ? 'Nothing else to stage.' : 'No changes.'}
+						</p>
+					{:else}
+						{@render changeSection(unstaged, unstagedTree, 'stage')}
+					{/if}
+				</div>
 			{/if}
 		</div>
 
 		<!-- Remotes -->
-		<div class="border-border/60 mt-1 flex flex-col gap-1.5 border-t pt-1.5">
-			<div class="flex items-center gap-1 px-0.5">
-				<span class="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-					Remotes{remotes.length ? ` (${remotes.length})` : ''}
-				</span>
+		<div class="border-border/60 mt-1 border-t pt-1.5">
+			<div class="flex items-center gap-0.5 px-0.5">
+				{@render secHead('Remotes', 'remotes', remotes.length || null)}
 				<Button
 					variant="ghost"
 					size="xs"
-					class="ml-auto"
 					title="Add a remote"
 					disabled={busy}
 					onclick={() => {
+						sections.remotes = true;
 						addingRemote = !addingRemote;
 						editingRemote = null;
 					}}
@@ -799,7 +873,9 @@
 				</Button>
 			</div>
 
-			<!-- Add-remote form -->
+			{#if sections.remotes}
+				<div transition:slide={{ duration: 200, easing: cubicOut }} class="mt-1 flex flex-col gap-1.5">
+					<!-- Add-remote form -->
 			{#if addingRemote}
 				<div class="border-border/60 flex flex-col gap-1 rounded border p-1.5">
 					<input bind:value={newRemoteName} placeholder="Name (e.g. origin)" class={inputCls} />
@@ -918,28 +994,32 @@
 						{remoteMsg}
 					</p>
 				{/if}
-			{:else if !addingRemote}
-				<p class="text-muted-foreground/70 px-0.5 text-[11px]">
-					No remotes. Add one to push or pull.
-				</p>
+				{:else if !addingRemote}
+						<p class="text-muted-foreground/70 px-0.5 text-[11px]">
+							No remotes. Add one to push or pull.
+						</p>
+					{/if}
+				</div>
 			{/if}
 		</div>
 
 		<!-- History -->
 		{#if commits.length}
-			<div class="border-border/60 mt-1 flex flex-col gap-0.5 border-t pt-1.5">
-				<span
-					class="text-muted-foreground flex items-center gap-1 px-0.5 text-[10px] font-medium tracking-wide uppercase"
-				>
-					<IconHistory size={11} /> History
-				</span>
-				{#each commits as c (c.hash)}
-					<div class="flex items-baseline gap-1.5 px-0.5 py-0.5 text-xs" title={c.author}>
-						<span class="text-muted-foreground/70 shrink-0 font-mono text-[10px]">{c.hash}</span>
-						<span class="text-foreground/85 truncate">{c.summary}</span>
-						<span class="text-muted-foreground/50 ml-auto shrink-0 text-[10px]">{when(c.time)}</span>
+			<div class="border-border/60 mt-1 border-t pt-1.5">
+				<div class="flex items-center gap-0.5 px-0.5">
+					{@render secHead('History', 'history', null)}
+				</div>
+				{#if sections.history}
+					<div transition:slide={{ duration: 200, easing: cubicOut }} class="mt-0.5 flex flex-col gap-0.5">
+						{#each commits as c (c.hash)}
+							<div class="flex items-baseline gap-1.5 px-0.5 py-0.5 text-xs" title={c.author}>
+								<span class="text-muted-foreground/70 shrink-0 font-mono text-[10px]">{c.hash}</span>
+								<span class="text-foreground/85 truncate">{c.summary}</span>
+								<span class="text-muted-foreground/50 ml-auto shrink-0 text-[10px]">{when(c.time)}</span>
+							</div>
+						{/each}
 					</div>
-				{/each}
+				{/if}
 			</div>
 		{/if}
 	</div>

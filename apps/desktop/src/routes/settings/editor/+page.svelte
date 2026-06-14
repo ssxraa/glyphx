@@ -3,8 +3,10 @@
 	import { Segmented } from '@glyphx/ui/segmented';
 	import { Separator } from '@glyphx/ui/separator';
 	import {
+		AUTO_SAVE_LABELS,
 		EDITOR_FONT_LABELS,
 		settings,
+		type AutoSaveMode,
 		type EditorFont,
 		type LatexGrammar
 	} from '@glyphx/ui/settings';
@@ -19,6 +21,10 @@
 	const fontOpts = (Object.keys(EDITOR_FONT_LABELS) as EditorFont[]).map((id) => ({
 		value: id,
 		label: EDITOR_FONT_LABELS[id]
+	}));
+	const autoSaveOpts = (Object.keys(AUTO_SAVE_LABELS) as AutoSaveMode[]).map((id) => ({
+		value: id,
+		label: AUTO_SAVE_LABELS[id]
 	}));
 </script>
 
@@ -85,8 +91,21 @@
 	</SettingsField>
 
 	<SettingsField
+		label="Auto save"
+		description="When edits are written to disk: off (only on ⌘/Ctrl+S), after a short delay, or when the editor loses focus. The preview always renders the last saved version."
+	>
+		<Segmented
+			options={autoSaveOpts}
+			value={settings.autoSave}
+			onValueChange={(v) => (settings.autoSave = v)}
+			size="sm"
+			aria-label="Auto save"
+		/>
+	</SettingsField>
+
+	<SettingsField
 		label="Live compile"
-		description="Recompile automatically as you type."
+		description="Recompile automatically whenever a file is saved. With auto save off, the preview refreshes on save (⌘/Ctrl+S); turn auto save to “After delay” for a live, type-and-see preview."
 		layout="row"
 	>
 		<Switch

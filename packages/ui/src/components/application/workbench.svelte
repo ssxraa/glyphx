@@ -1230,7 +1230,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   // --- Resizable sidebar (drag the edge; capped at 20% of the shell width) ---
   let shellEl = $state<HTMLElement>();
   let shellW = $state(2560);
-  let sidebarW = $state(240);
+  let sidebarW = $state(300);
   let resizingSidebar = $state(false);
   const ACTIVITY_BAR_PX = 48; // the w-12 rail left of the panel
   const maxSidebar = $derived(Math.max(200, Math.round(shellW * 0.3)));
@@ -2087,14 +2087,6 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                 >
                   <IconSearch size={15} />
                 </button>
-                <button
-                  class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
-                  title="Sync to PDF (⌘/Ctrl+J)"
-                  aria-label="Sync to PDF"
-                  onclick={syncToPdf}
-                >
-                  <IconCurrentLocation size={15} />
-                </button>
               </div>
             </div>
             <div class="min-h-0 flex-1">
@@ -2151,6 +2143,14 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
             <div
               class="text-muted-foreground border-border flex h-9 shrink-0 items-center gap-1.5 border-b px-2 text-xs"
             >
+              <button
+                class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+                title="Sync to PDF (⌘/Ctrl+J)"
+                aria-label="Sync to PDF"
+                onclick={syncToPdf}
+              >
+                <IconCurrentLocation size={15} />
+              </button>
               <!-- Status + recompile -->
               <span
                 class="inline-flex min-w-0 items-center gap-1.5 truncate pl-1 {compileStatus ===
@@ -2345,7 +2345,19 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
           {compileLabel}
         </span>
         <span class="text-muted-foreground/50">·</span>
-        <span>{settings.autoCompile ? "Auto" : "Manual"}</span>
+        <span
+          title={!settings.autoCompile
+            ? "Compile only when you press Compile"
+            : settings.autoSave === "off"
+              ? "Live compile is on, but auto save is off — the preview refreshes when you save (⌘/Ctrl+S)"
+              : "Recompiles automatically when the file is saved"}
+        >
+          {!settings.autoCompile
+            ? "Manual"
+            : settings.autoSave === "off"
+              ? "On save"
+              : "Live"}
+        </span>
         {#if dirtyIds.size > 0}
           <button
             class="text-brand inline-flex items-center gap-1 transition-opacity hover:opacity-80"

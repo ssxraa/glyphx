@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Button } from '@glyphx/ui/button';
+	import { PanelSection } from '@glyphx/ui/panel-section';
 	import { Segmented } from '@glyphx/ui/segmented';
-	import { Separator } from '@glyphx/ui/separator';
+	import { SliderControl } from '@glyphx/ui/slider-control';
 	import {
 	  AUTO_SAVE_LABELS,
 	  EDITOR_FONT_LABELS,
@@ -26,8 +27,6 @@
 	  IconFolders,
 	  IconGitBranch,
 	  IconList,
-	  IconMinus,
-	  IconPlus,
 	  IconRefresh,
 	  IconReplace,
 	  IconReplaceFilled,
@@ -69,7 +68,7 @@
 		mainId = null,
 		projectName = 'Project',
 		hasProject = false,
-		widthPx = 240,
+		widthPx = 300,
 		source = '',
 		engine,
 		git,
@@ -844,122 +843,114 @@
 				</div>
 			{/if}
 		{:else}
-			<!-- Settings — same SettingsField / Separator primitives as the
-			     /settings route, in the compact (sm) size. -->
-			<div class="flex flex-col gap-3 px-1 pt-0.5 pb-2">
-				<SettingsField size="sm" label="Appearance">
-					<Segmented
-						options={appearanceOpts}
-						value={settings.appearance}
-						onValueChange={(v) => (settings.appearance = v)}
+			<!-- Settings — grouped into titled PanelSections (recast property-panel
+			     pattern): a small uppercase section label over compact fields, with
+			     controls right-aligned on a row or stacked full-width. -->
+			<div class="flex flex-col gap-4 px-1 pt-1 pb-3">
+				<PanelSection title="Appearance">
+					<SettingsField size="sm" label="Theme">
+						<Segmented
+							options={appearanceOpts}
+							value={settings.appearance}
+							onValueChange={(v) => (settings.appearance = v)}
+							size="sm"
+							aria-label="Appearance"
+						/>
+					</SettingsField>
+				</PanelSection>
+
+				<PanelSection title="Editor">
+					<SettingsField size="sm" label="Font">
+						<Segmented
+							options={fontOpts}
+							value={settings.font}
+							onValueChange={(v) => (settings.font = v)}
+							size="sm"
+							aria-label="Editor font"
+						/>
+					</SettingsField>
+
+					<SliderControl
+						label="Font size"
+						value={settings.fontSize}
+						min={10}
+						max={24}
+						step={1}
+						unit="px"
+						onchange={(v) => (settings.fontSize = v)}
+					/>
+
+					<SettingsField size="sm" label="LaTeX grammar">
+						<Segmented
+							options={grammarOpts}
+							value={settings.grammar}
+							onValueChange={(v) => (settings.grammar = v)}
+							size="sm"
+							aria-label="LaTeX grammar"
+						/>
+					</SettingsField>
+
+					<SettingsField size="sm" label="Line wrapping" layout="row">
+						<Switch
+							checked={settings.lineWrapping}
+							onCheckedChange={(v) => (settings.lineWrapping = v)}
+							aria-label="Line wrapping"
+						/>
+					</SettingsField>
+				</PanelSection>
+
+				<PanelSection title="Compilation">
+					<SettingsField
 						size="sm"
-						aria-label="Appearance"
-					/>
-				</SettingsField>
+						label="Live compile"
+						description="Recompile automatically when a file is saved."
+						layout="row"
+					>
+						<Switch
+							checked={settings.autoCompile}
+							onCheckedChange={(v) => (settings.autoCompile = v)}
+							aria-label="Live compile"
+						/>
+					</SettingsField>
 
-				<SettingsField size="sm" label="LaTeX grammar">
-					<Segmented
-						options={grammarOpts}
-						value={settings.grammar}
-						onValueChange={(v) => (settings.grammar = v)}
+					<SettingsField
 						size="sm"
-						aria-label="LaTeX grammar"
-					/>
-				</SettingsField>
-
-				<SettingsField size="sm" label="Editor font">
-					<Segmented
-						options={fontOpts}
-						value={settings.font}
-						onValueChange={(v) => (settings.font = v)}
-						size="sm"
-						aria-label="Editor font"
-					/>
-				</SettingsField>
-
-				<SettingsField size="sm" label="Editor font size" layout="row">
-					<div class="flex items-center gap-1">
-						<Button
-							variant="outline"
-							size="icon-sm"
-							aria-label="Decrease font size"
-							disabled={settings.fontSize <= 10}
-							onclick={() => (settings.fontSize = Math.max(10, settings.fontSize - 1))}
-						>
-							<IconMinus size={15} />
-						</Button>
-						<span class="text-foreground w-9 text-center text-[13px] tabular-nums">
-							{settings.fontSize}px
-						</span>
-						<Button
-							variant="outline"
-							size="icon-sm"
-							aria-label="Increase font size"
-							disabled={settings.fontSize >= 24}
-							onclick={() => (settings.fontSize = Math.min(24, settings.fontSize + 1))}
-						>
-							<IconPlus size={15} />
-						</Button>
-					</div>
-				</SettingsField>
-
-				<Separator />
-
-				<SettingsField size="sm" label="Line wrapping" layout="row">
-					<Switch
-						checked={settings.lineWrapping}
-						onCheckedChange={(v) => (settings.lineWrapping = v)}
-						aria-label="Line wrapping"
-					/>
-				</SettingsField>
-
-				<SettingsField
-					size="sm"
-					label="Auto save"
-					description="When edits are written to disk. The preview always uses the last saved version."
-				>
-					<Segmented
-						options={autoSaveOpts}
-						value={settings.autoSave}
-						onValueChange={(v) => (settings.autoSave = v)}
-						size="sm"
-						aria-label="Auto save"
-					/>
-				</SettingsField>
-
-				<SettingsField
-					size="sm"
-					label="Live compile"
-					description="Recompile automatically when a file is saved"
-					layout="row"
-				>
-					<Switch
-						checked={settings.autoCompile}
-						onCheckedChange={(v) => (settings.autoCompile = v)}
-						aria-label="Live compile"
-					/>
-				</SettingsField>
+						label="Auto save"
+						description="When edits are written to disk. The preview always uses the last saved version."
+					>
+						<Segmented
+							options={autoSaveOpts}
+							value={settings.autoSave}
+							onValueChange={(v) => (settings.autoSave = v)}
+							size="sm"
+							aria-label="Auto save"
+						/>
+					</SettingsField>
+				</PanelSection>
 
 				{#if engine}
-					<EngineSettings {engine} />
+					<PanelSection title="Engine">
+						<EngineSettings {engine} />
+					</PanelSection>
 				{/if}
 
 				{#if onregistershell}
-					<Separator />
-					<SettingsField
-						size="sm"
-						label="System integration"
-						description="Add an “Open with GlyphX” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
-					>
-						<Button
-							variant="outline"
-							size="xs"
-							class="self-start"
-							onclick={() => onregistershell?.()}
+					<PanelSection title="System">
+						<SettingsField
+							size="sm"
+							label="System integration"
+							description="Add an “Open with GlyphX” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
 						>
-							Add “Open with GlyphX”
-						</Button>
-					</SettingsField>
+							<Button
+								variant="outline"
+								size="xs"
+								class="self-start"
+								onclick={() => onregistershell?.()}
+							>
+								Add “Open with GlyphX”
+							</Button>
+						</SettingsField>
+					</PanelSection>
 				{/if}
 			</div>
 		{/if}

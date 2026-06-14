@@ -105,6 +105,7 @@ pub fn run() {
             git::git_fetch,
             git::git_pull,
             git::git_push,
+            git::git_sync,
             take_launch_path
         ])
         .run(tauri::generate_context!())

@@ -21,7 +21,7 @@
 	bind:checked
 	data-slot="switch"
 	class={cn(
-		"peer bg-input data-checked:bg-brand relative inline-flex h-[18px] w-8 shrink-0 cursor-pointer items-center rounded-full outline-none transition-colors",
+		"peer bg-input data-[state=checked]:bg-brand relative inline-flex h-[18px] w-8 shrink-0 cursor-pointer items-center rounded-full outline-none transition-colors",
 		"focus-visible:ring-ring/50 focus-visible:ring-[3px]",
 		"disabled:cursor-not-allowed disabled:opacity-50",
 		className,
@@ -32,7 +32,7 @@
 		data-slot="switch-thumb"
 		class={cn(
 			"pointer-events-none block size-3.5 translate-x-[2px] rounded-full bg-white shadow-craft-sm transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)]",
-			"data-checked:translate-x-[16px]",
+			"data-[state=checked]:translate-x-[16px]",
 		)}
 	/>
 </SwitchPrimitive.Root>

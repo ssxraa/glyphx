@@ -55,6 +55,12 @@ fn open_index_mut(repo: &gix::Repository) -> gix::index::File {
     })
 }
 
+/// True while a merge is in progress (a `MERGE_HEAD` is present) — the working
+/// tree may contain conflicts that need resolving before the merge can commit.
+fn merge_in_progress(repo: &gix::Repository) -> bool {
+    repo.git_dir().join("MERGE_HEAD").exists()
+}
+
 /// Whether `root` is the top of a Git repository.
 #[tauri::command]
 pub async fn git_is_repo(root: String) -> bool {
@@ -79,27 +85,72 @@ pub struct GitHead {
     pub ahead: Option<u32>,
     /// Commits the local branch is behind its upstream.
     pub behind: Option<u32>,
+    /// True while a merge is in progress (working tree may have conflicts).
+    pub merging: bool,
 }
 
-/// Ahead/behind counts vs the upstream, via system git (best-effort: returns all
-/// `None` when there's no upstream or git isn't installed).
+/// `<remote>/<current-branch>` if such a remote-tracking ref exists (prefers
+/// `origin`). Used to measure "behind" when no upstream is configured.
+fn tracking_ref(root: &str) -> Option<String> {
+    let branch = run_git(root, ["rev-parse", "--abbrev-ref", "HEAD"])
+        .ok()
+        .filter(|s| !s.is_empty() && s != "HEAD")?;
+    let remotes = run_git(root, ["remote"]).ok()?;
+    let remote = remotes
+        .lines()
+        .find(|r| r.trim() == "origin")
+        .or_else(|| remotes.lines().next())?
+        .trim()
+        .to_string();
+    let candidate = format!("{remote}/{branch}");
+    let full = format!("refs/remotes/{candidate}");
+    run_git(root, ["rev-parse", "--verify", "--quiet", full.as_str()])
+        .ok()
+        .map(|_| candidate)
+}
+
+/// Upstream + ahead/behind, via system git (best-effort: all `None` when git
+/// isn't installed or there's nothing to compare against).
+///
+/// `ahead` counts local commits not present on **any** remote-tracking branch
+/// (`HEAD --not --remotes`), so unpushed commits show even when no upstream is
+/// configured — the common case after a local `init` + `remote add` (our
+/// token-in-URL push never sets tracking). `behind` is measured against the
+/// upstream, else the matching `origin/<branch>` ref, else left unknown.
 fn ahead_behind(root: &str) -> (Option<String>, Option<u32>, Option<u32>) {
+    // No commits yet → nothing to compare.
+    if run_git(root, ["rev-parse", "--verify", "--quiet", "HEAD"]).is_err() {
+        return (None, None, None);
+    }
+    // No remotes configured → ahead/behind are meaningless (use "Publish" UX later).
+    let has_remote = run_git(root, ["remote"])
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false);
+    if !has_remote {
+        return (None, None, None);
+    }
+
     let upstream = run_git(
         root,
         ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
     )
     .ok()
     .filter(|s| !s.is_empty());
-    if upstream.is_none() {
-        return (None, None, None);
-    }
-    let mut ahead = None;
-    let mut behind = None;
-    if let Ok(counts) = run_git(root, ["rev-list", "--left-right", "--count", "HEAD...@{u}"]) {
-        let mut it = counts.split_whitespace();
-        ahead = it.next().and_then(|x| x.parse().ok());
-        behind = it.next().and_then(|x| x.parse().ok());
-    }
+
+    // "behind" target: the upstream, else origin/<branch> if it exists.
+    let target = upstream.clone().or_else(|| tracking_ref(root));
+    let behind = target.as_ref().and_then(|t| {
+        let range = format!("HEAD..{t}");
+        run_git(root, ["rev-list", "--count", range.as_str()])
+            .ok()
+            .and_then(|s| s.trim().parse().ok())
+    });
+
+    // "ahead" = local commits not on any remote — robust without an upstream.
+    let ahead = run_git(root, ["rev-list", "--count", "HEAD", "--not", "--remotes"])
+        .ok()
+        .and_then(|s| s.trim().parse().ok());
+
     (upstream, ahead, behind)
 }
 
@@ -119,6 +170,7 @@ pub async fn git_head(root: String) -> Result<GitHead, String> {
         upstream,
         ahead,
         behind,
+        merging: merge_in_progress(&repo),
     })
 }
 
@@ -176,6 +228,28 @@ pub async fn git_status(root: String) -> Result<Vec<GitChange>, String> {
                     status: status.into(),
                     staged: true,
                 });
+            }
+        }
+    }
+
+    // During a merge, surface conflicted (unmerged) files distinctly. This is the
+    // only time we shell out from status; the common (non-merge) path stays pure.
+    if merge_in_progress(&repo) {
+        if let Ok(list) = run_git(&root, ["diff", "--name-only", "--diff-filter=U"]) {
+            let conflicted: std::collections::BTreeSet<String> = list
+                .lines()
+                .map(|l| l.trim().to_string())
+                .filter(|l| !l.is_empty())
+                .collect();
+            if !conflicted.is_empty() {
+                out.retain(|c| !conflicted.contains(&c.path));
+                for path in conflicted {
+                    out.push(GitChange {
+                        path,
+                        status: "conflicted".into(),
+                        staged: false,
+                    });
+                }
             }
         }
     }
@@ -342,10 +416,14 @@ pub async fn git_commit(root: String, message: String) -> Result<String, String>
     }
     let tree_id = editor.write().map_err(|e| e.to_string())?.detach();
 
-    // Reject empty commits (tree identical to HEAD's = nothing staged).
-    if let Ok(head_tree) = repo.head_tree_id() {
-        if head_tree.detach() == tree_id {
-            return Err("Nothing staged to commit.".into());
+    // A merge commit is legitimate even if its tree matches HEAD's, so only
+    // reject empty commits when we're NOT completing a merge.
+    let merging = merge_in_progress(&repo);
+    if !merging {
+        if let Ok(head_tree) = repo.head_tree_id() {
+            if head_tree.detach() == tree_id {
+                return Err("Nothing staged to commit.".into());
+            }
         }
     }
 
@@ -366,10 +444,32 @@ pub async fn git_commit(root: String, message: String) -> Result<String, String>
     };
     let sig_ref = sig.to_ref();
 
-    let parents: Vec<_> = head_id.iter().map(|id| id.detach()).collect();
+    // Parents: HEAD, plus any MERGE_HEAD(s) so resolving + committing finishes
+    // the merge with the correct two-parent history.
+    let mut parents: Vec<gix::ObjectId> = head_id.iter().map(|id| id.detach()).collect();
+    if merging {
+        if let Ok(content) = std::fs::read_to_string(repo.git_dir().join("MERGE_HEAD")) {
+            for line in content.lines() {
+                let line = line.trim();
+                if !line.is_empty() {
+                    if let Ok(oid) = gix::ObjectId::from_hex(line.as_bytes()) {
+                        parents.push(oid);
+                    }
+                }
+            }
+        }
+    }
     let commit_id = repo
         .commit_as(sig_ref, sig_ref, "HEAD", &message, tree_id, parents)
         .map_err(|e| e.to_string())?;
+
+    // Clear the merge state once the merge commit lands.
+    if merging {
+        let gd = repo.git_dir();
+        for f in ["MERGE_HEAD", "MERGE_MSG", "MERGE_MODE"] {
+            let _ = std::fs::remove_file(gd.join(f));
+        }
+    }
 
     Ok(commit_id.to_hex_with_len(7).to_string())
 }
@@ -576,20 +676,115 @@ pub async fn git_pull(root: String, url: Option<String>) -> Result<String, Strin
     run_git(&root, args)
 }
 
+/// After a push to a *URL* (which, unlike a named remote, doesn't move the local
+/// remote-tracking ref), point `refs/remotes/<remote>/<branch>` at HEAD so
+/// ahead/behind reflects reality — otherwise pushed commits still read as ahead.
+fn sync_tracking_ref(root: &str, remote: &Option<String>, branch: &Option<String>) {
+    let Some(remote) = remote else { return };
+    let branch = branch
+        .clone()
+        .filter(|b| !b.is_empty())
+        .or_else(|| {
+            run_git(root, ["rev-parse", "--abbrev-ref", "HEAD"])
+                .ok()
+                .filter(|b| !b.is_empty() && b != "HEAD")
+        });
+    if let Some(b) = branch {
+        let refname = format!("refs/remotes/{remote}/{b}");
+        let _ = run_git(root, ["update-ref", refname.as_str(), "HEAD"]);
+    }
+}
+
 /// Push the current branch (system git). `url` carries token auth if given;
-/// `branch` sets the destination ref (defaults to the current upstream).
+/// `branch` sets the destination ref (defaults to the current upstream);
+/// `remote` is the remote name, used only to refresh its tracking ref.
 #[tauri::command]
 pub async fn git_push(
     root: String,
     url: Option<String>,
     branch: Option<String>,
+    remote: Option<String>,
 ) -> Result<String, String> {
     let mut args: Vec<String> = vec!["push".into()];
-    if let Some(u) = url {
-        args.push(u);
-        args.push(format!("HEAD:{}", branch.unwrap_or_else(|| "HEAD".into())));
+    if let Some(u) = &url {
+        args.push(u.clone());
+        args.push(format!("HEAD:{}", branch.clone().unwrap_or_else(|| "HEAD".into())));
     }
-    run_git(&root, args)
+    let out = run_git(&root, args)?;
+    sync_tracking_ref(&root, &remote, &branch);
+    Ok(out)
+}
+
+/// Outcome of a sync (pull-then-push). `conflicts` is true when the merge
+/// stopped on conflicts that the user must resolve before the merge can commit.
+#[derive(Serialize)]
+pub struct SyncOutcome {
+    pub conflicts: bool,
+    pub message: String,
+}
+
+/// Sync = pull (merge, not fast-forward-only) then push — VS Code's "Sync
+/// Changes". On a merge conflict it stops after the pull and reports it so the
+/// UI can guide the user to resolve; otherwise it pushes and updates tracking.
+#[tauri::command]
+pub async fn git_sync(
+    root: String,
+    url: Option<String>,
+    branch: Option<String>,
+    remote: Option<String>,
+) -> Result<SyncOutcome, String> {
+    // Pull with a real merge so a diverged branch reconciles.
+    let mut pull_args: Vec<String> = vec!["pull".into(), "--no-edit".into()];
+    if let Some(u) = &url {
+        pull_args.push(u.clone());
+        if let Some(b) = branch.clone().filter(|b| !b.is_empty()) {
+            pull_args.push(b);
+        }
+    }
+    let pull = Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(&pull_args)
+        .output()
+        .map_err(|e| {
+            format!("Could not run git — install Git and ensure it's on your PATH for this action. ({e})")
+        })?;
+    if !pull.status.success() {
+        // Conflict text goes to stdout; other failures to stderr — check both.
+        let combined = format!(
+            "{}{}",
+            String::from_utf8_lossy(&pull.stdout),
+            String::from_utf8_lossy(&pull.stderr)
+        );
+        let low = combined.to_lowercase();
+        if low.contains("conflict")
+            || low.contains("automatic merge failed")
+            || low.contains("fix conflicts")
+        {
+            return Ok(SyncOutcome {
+                conflicts: true,
+                message: "Pulled the remote changes, but there are merge conflicts. Resolve the conflicted files, stage them, then commit to finish the merge.".into(),
+            });
+        }
+        return Err(if combined.trim().is_empty() {
+            format!("git pull exited with code {:?}", pull.status.code())
+        } else {
+            combined.trim().to_string()
+        });
+    }
+
+    // Pull succeeded → push the (possibly newly-merged) HEAD.
+    let mut push_args: Vec<String> = vec!["push".into()];
+    if let Some(u) = &url {
+        push_args.push(u.clone());
+        push_args.push(format!("HEAD:{}", branch.clone().unwrap_or_else(|| "HEAD".into())));
+    }
+    run_git(&root, push_args)?;
+    sync_tracking_ref(&root, &remote, &branch);
+    Ok(SyncOutcome {
+        conflicts: false,
+        message: "Synced with remote.".into(),
+    })
 }
 
 #[cfg(test)]

@@ -26,7 +26,8 @@ export const gitProvider: GitProvider = {
 	remoteRemove: (root, name) => invoke('git_remote_remove', { root, name }),
 	fetch: (root, url) => invoke('git_fetch', { root, url }),
 	pull: (root, url) => invoke('git_pull', { root, url }),
-	push: (root, url, branch) => invoke('git_push', { root, url, branch }),
+	push: (root, url, branch, remote) => invoke('git_push', { root, url, branch, remote }),
+	sync: (root, url, branch, remote) => invoke('git_sync', { root, url, branch, remote }),
 	// Native OS confirmation dialog (Tauri) for destructive actions.
 	confirm: (message, title) => confirm(message, { title, kind: 'warning' })
 };
