@@ -10,6 +10,7 @@ nothing has to leave your machine.
 
 **Free in your browser · Free as a desktop app · Open source**
 
+<img src="screenshot.png" alt="GlyphX logo" />
 </div>
 
 ---
