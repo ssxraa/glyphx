@@ -71,6 +71,7 @@
 	import {
 		IconGitBranch,
 		IconGitCommit,
+		IconRefresh,
 		IconHistory,
 		IconPlus,
 		IconMinus,
@@ -272,6 +273,14 @@
 		isRepo && !busy && message.trim().length > 0 && staged.length > 0
 	);
 
+	// Smart primary action (VS Code-style): commit while there are changes;
+	// once the tree is clean, become Push / Pull / Sync if local & remote differ.
+	const hasChanges = $derived(staged.length > 0 || unstaged.length > 0);
+	type SyncAction = 'push' | 'pull' | 'sync' | 'none';
+	const syncAction = $derived<SyncAction>(
+		head?.ahead && head?.behind ? 'sync' : head?.ahead ? 'push' : head?.behind ? 'pull' : 'none'
+	);
+
 	async function refresh() {
 		if (!git || !root) return;
 		loading = true;
@@ -459,6 +468,21 @@
 			remoteMsg = (await git!.push(root!, authedUrl(), head?.branch ?? undefined)) || 'Pushed.';
 		});
 	};
+	/** Pull then push — VS Code's "Sync Changes". */
+	const doSync = () => {
+		if (!requireRemote('Sync')) return;
+		runRemote('Sync', async () => {
+			await git!.pull(root!, authedUrl());
+			await git!.push(root!, authedUrl(), head?.branch ?? undefined);
+			remoteMsg = 'Synced with remote.';
+		});
+	};
+	/** Run whatever the smart primary button currently represents. */
+	function runPrimarySync() {
+		if (syncAction === 'push') doPush();
+		else if (syncAction === 'pull') doPull();
+		else if (syncAction === 'sync') doSync();
+	}
 
 	// --- Remote management ---------------------------------------------------
 	function startEditRemote(r: GitRemote) {
@@ -659,12 +683,39 @@
 			{/if}
 		</div>
 
-		<!-- Commit box -->
-		<Textarea bind:value={message} placeholder="Commit message" rows={2} class="resize-none text-xs" />
-		<Button size="sm" disabled={!canCommit} onclick={commit}>
-			<IconGitCommit size={14} />
-			{busy ? 'Committing…' : `Commit${staged.length ? ` ${staged.length}` : ''}`}
-		</Button>
+		<!-- Commit box (shown while there are changes); once the tree is clean the
+		     primary button becomes Push / Pull / Sync if local & remote differ. -->
+		{#if hasChanges}
+			<Textarea
+				bind:value={message}
+				placeholder="Commit message"
+				rows={2}
+				class="resize-none text-xs"
+			/>
+			<Button size="sm" disabled={!canCommit} onclick={commit}>
+				<IconGitCommit size={14} />
+				{busy ? 'Committing…' : `Commit${staged.length ? ` ${staged.length}` : ''}`}
+			</Button>
+		{:else if syncAction === 'push'}
+			<Button size="sm" disabled={busy} onclick={runPrimarySync}>
+				<IconArrowUp size={14} />
+				{busy ? 'Pushing…' : `Push${head?.ahead ? ` ${head.ahead}` : ''}`}
+			</Button>
+		{:else if syncAction === 'pull'}
+			<Button size="sm" disabled={busy} onclick={runPrimarySync}>
+				<IconArrowDown size={14} />
+				{busy ? 'Pulling…' : `Pull${head?.behind ? ` ${head.behind}` : ''}`}
+			</Button>
+		{:else if syncAction === 'sync'}
+			<Button size="sm" disabled={busy} onclick={runPrimarySync}>
+				<IconRefresh size={14} />
+				{busy ? 'Syncing…' : 'Sync Changes'}
+			</Button>
+		{:else}
+			<p class="text-muted-foreground/70 px-0.5 py-1 text-center text-[11px]">
+				{head?.unborn ? 'No commits yet.' : 'Nothing to commit — working tree clean.'}
+			</p>
+		{/if}
 
 		{#if error}
 			<p class="text-destructive px-0.5 text-[11px] leading-snug">{error}</p>

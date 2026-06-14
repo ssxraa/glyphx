@@ -1466,6 +1466,13 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     pdfView?.revealLocation(loc);
   }
 
+  /** Content the engine compiles in single-file mode: the active file's last
+   *  *saved* version (project mode compiles the saved files straight off disk). */
+  function compileSource(): string {
+    const f = files.find((x) => x.id === activeId) ?? activeFile;
+    return f?.saved ?? f?.content ?? source;
+  }
+
   async function runCompile(manual = false) {
     if (!canCompile) {
       compileError = "Compilation runs in the GlyphX desktop app.";
@@ -1473,6 +1480,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       if (manual && viewMode === "editor") viewMode = "split";
       return;
     }
+    // A manual compile commits the current edits first, so it always reflects
+    // what's on screen. Auto-compile only ever sees already-saved content.
+    if (manual) await saveActive(false);
     // Coalesce: a compile is already in flight — queue exactly one rerun.
     if (compiling) {
       pendingRecompile = true;
@@ -1483,11 +1493,8 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     try {
       do {
         pendingRecompile = false;
-        // Flush the active buffer (to disk for project files) so the engine
-        // sees the latest source before it runs. `false` = don't re-arm the
-        // auto-compile from inside a compile.
-        await saveActive(false);
-        const snapshot = source;
+        // Compile the last *saved* content (project mode reads it from disk).
+        const snapshot = compileSource();
         const useProject = projectCompile;
         // Skip redundant auto-recompiles of already-rendered content. Only in
         // single-file mode — in a project, an edit to a non-active file (saved
@@ -1606,6 +1613,19 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
           label: "Export as Zip",
           disabled: !project || !projectRoot,
           run: () => exportProject(),
+        },
+        { type: "separator" },
+        {
+          label: "Save",
+          shortcut: shortcutLabel("save"),
+          disabled: !activeDirty,
+          run: () => void saveActive(),
+        },
+        {
+          label: "Save All",
+          shortcut: shortcutLabel("save-all"),
+          disabled: dirtyIds.size === 0,
+          run: () => void saveAll(),
         },
         { type: "separator" },
         {
@@ -1771,6 +1791,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     // Cheap early-out: every app shortcut carries a Mod (⌘/Ctrl).
     if (!(e.ctrlKey || e.metaKey)) return;
     const actions: Array<[string, () => void]> = [
+      // Save-all before save so ⌘⇧S isn't shadowed by the ⌘S match.
+      ["save-all", () => void saveAll()],
+      ["save", () => void saveActive()],
       ["compile", () => runCompile(true)],
       ["sync-pdf", () => syncToPdf()],
       ["quick-open", () => (paletteOpen = true)],
@@ -1788,6 +1811,12 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     }
   }
 
+  // "On focus change" auto-save: persist when the window loses focus. (Switching
+  // files is handled in openFile, which saves whenever auto-save isn't off.)
+  function onWindowBlur() {
+    if (settings.autoSave === "onFocusChange") void saveActive();
+  }
+
   onDestroy(() => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
   });
@@ -1797,6 +1826,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   onpointermove={onPointerMove}
   onpointerup={stopResize}
   onkeydown={onKeydown}
+  onblur={onWindowBlur}
 />
 
 <div class="bg-background text-foreground flex h-dvh flex-col overflow-hidden">

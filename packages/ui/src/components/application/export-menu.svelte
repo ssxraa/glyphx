@@ -15,7 +15,6 @@
     IconCode,
     IconCopy,
     IconDownload,
-    IconFileText,
     IconFileTypePdf,
     IconFileZip,
   } from "@tabler/icons-svelte";
@@ -97,10 +96,6 @@
     saveOrDownload(new TextEncoder().encode(source), `${baseName}.tex`, [
       "tex",
     ]);
-  const exportTxt = () =>
-    saveOrDownload(new TextEncoder().encode(source), `${baseName}.txt`, [
-      "txt",
-    ]);
 
   async function exportZip() {
     open = false;
@@ -143,7 +138,6 @@
       hint: "Current file",
       run: exportTex,
     },
-    { icon: IconFileText, label: "Export plain text", run: exportTxt },
     // Zip the whole working directory — only when a folder project is open
     // (desktop). The host injects `onExportZip`; web builds never pass it.
     ...(onExportZip
