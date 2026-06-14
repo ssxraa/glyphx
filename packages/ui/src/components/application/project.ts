@@ -13,6 +13,12 @@
 export type ProjectFile = { abs: string; rel: string };
 
 export type ProjectHost = {
+	/**
+	 * Create a new project folder in the app's own data directory (no location
+	 * prompt — new projects live here by default), returning its absolute root.
+	 * Absent on the web (in-memory projects only).
+	 */
+	createLocalProject?: (name: string) => Promise<string>;
 	/** Native folder picker → chosen absolute path, or null if cancelled. */
 	pickFolder: (title?: string) => Promise<string | null>;
 	/** Native file picker for import (.zip / .glyx / .tex) → path, or null. */

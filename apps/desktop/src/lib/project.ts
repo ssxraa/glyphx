@@ -11,6 +11,8 @@ import type { ProjectFile, ProjectHost } from '@glyphx/ui/application';
  * `<Workbench project={projectHost} />`. The web build leaves this undefined.
  */
 export const projectHost: ProjectHost = {
+	createLocalProject: (name) => invoke<string>('create_local_project', { name }),
+
 	pickFolder: async (title) => {
 		const sel = await open({ directory: true, multiple: false, title });
 		return typeof sel === 'string' ? sel : null;

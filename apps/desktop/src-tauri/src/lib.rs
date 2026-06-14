@@ -76,6 +76,7 @@ pub fn run() {
             engine::remove_tectonic,
             engine::tectonic_cache_info,
             engine::clear_tectonic_cache,
+            project::create_local_project,
             project::read_project_files,
             project::read_file_text,
             project::write_file_text,

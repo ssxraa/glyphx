@@ -7,6 +7,25 @@
 	import { projectHost } from '$lib/project';
 	import { gitProvider } from '$lib/git';
 
+	/**
+	 * New project — created on disk in the app's own data directory by default
+	 * (no save prompt). Falls back to an in-memory project if that fails.
+	 */
+	async function newProject() {
+		try {
+			if (projectHost.createLocalProject) {
+				const root = await projectHost.createLocalProject('Untitled project');
+				const p = projects.remember(root);
+				goto(resolve(`/editor/${p.id}`));
+				return;
+			}
+		} catch (e) {
+			await message(String(e), { title: 'Could not create project', kind: 'error' });
+		}
+		const p = projects.create();
+		goto(resolve(`/editor/${p.id}`));
+	}
+
 	/** Open a disk-backed project folder: remember it, then route to the editor. */
 	async function openFolder() {
 		const root = await projectHost.pickFolder('Open project folder');
@@ -56,10 +75,7 @@
 
 <ProjectsHome
 	projects={projects.list}
-	oncreate={() => {
-		const p = projects.create();
-		goto(resolve(`/editor/${p.id}`));
-	}}
+	oncreate={newProject}
 	onopenfolder={openFolder}
 	onimport={importZip}
 	onclone={cloneRepo}
@@ -70,5 +86,9 @@
 	onrename={(id, name) => projects.rename(id, name)}
 	onduplicate={(id) => projects.duplicate(id)}
 	ondelete={(id) => projects.remove(id)}
+	onreveal={(id) => {
+		const p = projects.list.find((x) => x.id === id);
+		if (p?.root) void projectHost.revealInOS?.(p.root);
+	}}
 	onsettings={() => goto(resolve('/settings'))}
 />

@@ -35,6 +35,12 @@ export const dropdownMenuItemSizeVariants = tv({
 			default: "gap-1.5 px-1.5 py-1 text-sm [&_svg:not([class*='size-'])]:size-4",
 			lg: "gap-2 px-2 py-1.5 text-[14px] [&_svg:not([class*='size-'])]:size-4",
 		},
+		variant:{
+			destructive: "data-[state=on]:bg-destructive/10 [&_[data-state=on]_svg]:text-destructive",
+			warning: "data-[state=on]:bg-warning/10 [&_[data-state=on]_svg]:text-warning",
+			primary: "data-[state=on]:bg-primary/10 [&_[data-state=on]_svg]:text-primary",
+			secondary: "data-[state=on]:bg-secondary/10 [&_[data-state=on]_svg]:text-secondary",
+		}
 	},
 	defaultVariants: { size: "default" },
 });

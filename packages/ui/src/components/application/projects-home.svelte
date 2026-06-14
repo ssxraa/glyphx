@@ -6,26 +6,27 @@
 <script lang="ts">
 	import { Button } from '@glyphx/ui/button';
 	import {
-		DropdownMenu,
-		DropdownMenuContent,
-		DropdownMenuItem,
-		DropdownMenuSeparator,
-		DropdownMenuTrigger
+	  DropdownMenu,
+	  DropdownMenuContent,
+	  DropdownMenuItem,
+	  DropdownMenuSeparator,
+	  DropdownMenuTrigger
 	} from '@glyphx/ui/dropdown-menu';
 	import { Logo } from '@glyphx/ui/logo';
 	import { projectViewTransitionName } from '@glyphx/ui/projects';
 	import { ThemeToggle } from '@glyphx/ui/theme-toggle';
 	import {
-		IconCopy,
-		IconCloudDownload,
-		IconDotsVertical,
-		IconFileImport,
-		IconFolderOpen,
-		IconPencil,
-		IconPlus,
-		IconSearch,
-		IconSettings,
-		IconTrash
+	  IconCloudDownload,
+	  IconCopy,
+	  IconDotsVertical,
+	  IconFileImport,
+	  IconFolderOpen,
+	  IconFolderShare,
+	  IconPencil,
+	  IconPlus,
+	  IconSearch,
+	  IconSettings,
+	  IconTrash
 	} from '@tabler/icons-svelte';
 
 	/**
@@ -45,6 +46,7 @@
 		onrename,
 		onduplicate,
 		ondelete,
+		onreveal,
 		onsettings
 	}: {
 		projects?: Project[];
@@ -59,6 +61,8 @@
 		onrename?: (id: string, name: string) => void;
 		onduplicate?: (id: string) => void;
 		ondelete?: (id: string) => void;
+		/** Reveal a disk-backed project's folder in the OS file manager (desktop). */
+		onreveal?: (id: string) => void;
 		/** Open the app settings page (desktop). */
 		onsettings?: () => void;
 	} = $props();
@@ -125,10 +129,12 @@
 </script>
 
 <div class="bg-background text-foreground flex h-dvh flex-col overflow-hidden">
-	<!-- Top bar -->
-	<header class="border-border flex h-14 shrink-0 items-center gap-3 border-b px-5">
+	<!-- Top bar — brand + global controls only; project actions live with the grid. -->
+	<header
+		class="border-border flex h-14 shrink-0 items-center justify-between gap-3 border-b px-6"
+	>
 		<Logo size={26} viewTransitionName="app-logo" class="text-base tracking-tight" />
-		<div class="ml-auto flex items-center gap-2">
+		<div class="flex items-center gap-1">
 			<ThemeToggle size="icon-sm" />
 			{#if onsettings}
 				<Button
@@ -141,93 +147,95 @@
 					<IconSettings size={16} />
 				</Button>
 			{/if}
-			{#if onimport}
-				<Button size="sm" variant="outline" onclick={() => onimport?.()}>
-					<IconFileImport size={15} />
-					Import
-				</Button>
-			{/if}
-			{#if onclone}
-				<Button
-					size="sm"
-					variant="outline"
-					onclick={() => {
-						cloning = !cloning;
-						if (cloning) cloneUrl = '';
-					}}
-				>
-					<IconCloudDownload size={15} />
-					Clone
-				</Button>
-			{/if}
-			{#if onopenfolder}
-				<Button size="sm" variant="outline" onclick={() => onopenfolder?.()}>
-					<IconFolderOpen size={15} />
-					Open folder
-				</Button>
-			{/if}
-			<Button size="sm" onclick={() => oncreate?.()}>
-				<IconPlus size={15} />
-				New project
-			</Button>
 		</div>
 	</header>
 
-	<!-- Clone bar -->
-	{#if onclone && cloning}
-		<div class="border-border bg-muted/30 flex shrink-0 items-center gap-2 border-b px-5 py-2.5">
-			<IconCloudDownload size={16} class="text-muted-foreground shrink-0" />
-			<!-- svelte-ignore a11y_autofocus -->
-			<input
-				bind:value={cloneUrl}
-				class="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-9 min-w-0 flex-1 rounded-lg border px-3 text-sm outline-none focus-visible:ring-2"
-				placeholder="Repository URL — https://github.com/owner/repo.git"
-				spellcheck="false"
-				autofocus
-				disabled={cloneBusy}
-				onkeydown={(e) => {
-					if (e.key === 'Enter') submitClone();
-					if (e.key === 'Escape') cloning = false;
-				}}
-			/>
-			<Button size="sm" disabled={cloneBusy || !cloneUrl.trim()} onclick={submitClone}>
-				{cloneBusy ? 'Cloning…' : 'Clone'}
-			</Button>
-			<Button size="sm" variant="ghost" disabled={cloneBusy} onclick={() => (cloning = false)}>
-				Cancel
-			</Button>
-		</div>
-	{/if}
-
 	<div class="min-h-0 flex-1 overflow-auto">
-		<div class="mx-auto w-full max-w-[1100px] px-6 py-8">
-			<!-- Title row + search -->
-			<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+		<div class="mx-auto w-full max-w-[1140px] px-6 pt-10 pb-12">
+			<!-- Hero: title + the project actions (create / open / import / clone). -->
+			<div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
 				<div>
-					<h1 class="font-display text-2xl tracking-tight">Projects</h1>
-					<p class="text-muted-foreground mt-1 text-sm">
+					<h1 class="font-display text-3xl font-semibold tracking-tight">Your projects</h1>
+					<p class="text-muted-foreground mt-1.5 text-sm">
 						{projects.length}
 						{projects.length === 1 ? 'project' : 'projects'} · stored on this device
 					</p>
 				</div>
-				<div class="relative">
-					<IconSearch
-						size={15}
-						class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
-					/>
-					<input
-						bind:value={query}
-						class="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-9 w-60 rounded-lg border py-1.5 pr-3 pl-8 text-sm outline-none transition-[box-shadow,border-color] focus-visible:ring-2"
-						placeholder="Search projects"
-						spellcheck="false"
-						aria-label="Search projects"
-					/>
+				<div class="flex flex-wrap items-center gap-2">
+					{#if onopenfolder}
+						<Button size="sm" variant="outline" onclick={() => onopenfolder?.()}>
+							<IconFolderOpen size={15} /> Open folder
+						</Button>
+					{/if}
+					{#if onimport}
+						<Button size="sm" variant="outline" onclick={() => onimport?.()}>
+							<IconFileImport size={15} /> Import
+						</Button>
+					{/if}
+					{#if onclone}
+						<Button
+							size="sm"
+							variant="outline"
+							onclick={() => {
+								cloning = !cloning;
+								if (cloning) cloneUrl = '';
+							}}
+						>
+							<IconCloudDownload size={15} /> Clone
+						</Button>
+					{/if}
+					<Button size="sm" onclick={() => oncreate?.()}>
+						<IconPlus size={15} /> New project
+					</Button>
 				</div>
+			</div>
+
+			<!-- Clone bar (inline, contextually under the Clone action). -->
+			{#if onclone && cloning}
+				<div
+					class="border-border bg-card shadow-craft-sm mt-4 flex items-center gap-2 rounded-xl border p-2"
+				>
+					<IconCloudDownload size={16} class="text-muted-foreground ml-1 shrink-0" />
+					<!-- svelte-ignore a11y_autofocus -->
+					<input
+						bind:value={cloneUrl}
+						class="text-foreground placeholder:text-muted-foreground h-9 min-w-0 flex-1 bg-transparent px-1 text-sm outline-none"
+						placeholder="Repository URL — https://github.com/owner/repo.git"
+						spellcheck="false"
+						autofocus
+						disabled={cloneBusy}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') submitClone();
+							if (e.key === 'Escape') cloning = false;
+						}}
+					/>
+					<Button size="sm" disabled={cloneBusy || !cloneUrl.trim()} onclick={submitClone}>
+						{cloneBusy ? 'Cloning…' : 'Clone'}
+					</Button>
+					<Button size="sm" variant="ghost" disabled={cloneBusy} onclick={() => (cloning = false)}>
+						Cancel
+					</Button>
+				</div>
+			{/if}
+
+			<!-- Search -->
+			<div class="relative mt-6">
+				<IconSearch
+					size={16}
+					class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2"
+				/>
+				<input
+					bind:value={query}
+					class="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/30 ease-craft h-11 w-full rounded-xl border py-2 pr-3 pl-10 text-sm outline-none transition-[box-shadow,border-color] duration-200 focus-visible:ring-2"
+					placeholder="Search projects"
+					spellcheck="false"
+					aria-label="Search projects"
+				/>
 			</div>
 
 			{#if filtered.length === 0}
 				<div
-					class="border-border text-muted-foreground mt-10 flex flex-col items-center gap-4 rounded-2xl border border-dashed py-20 text-center"
+					class="border-border text-muted-foreground mt-8 flex flex-col items-center gap-4 rounded-2xl border border-dashed py-20 text-center"
 				>
 					<Logo text={false} badge={false} size={44} class="opacity-40" />
 					{#if projects.length === 0}
@@ -244,17 +252,17 @@
 				</div>
 			{:else}
 				<div
-					class="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-5"
+					class="mt-7 grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap-y-7"
 					role="list"
 					aria-label="Projects"
 				>
 					<!-- New-project card -->
 					<button
-						class="group border-border hover:border-ring/50 hover:bg-muted/30 flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-xl border border-dashed transition-[colors,transform,box-shadow] duration-200 ease-out hover:-translate-y-1 active:translate-y-0 active:scale-[0.99] motion-reduce:transform-none"
+						class="group glyphx-card-in border-border hover:border-ring/50 hover:bg-muted/30 ease-craft flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-xl border border-dashed transition-all duration-300 hover:-translate-y-1 active:translate-y-0 active:scale-[0.99] motion-reduce:transform-none"
 						onclick={() => oncreate?.()}
 					>
 						<span
-							class="bg-muted text-muted-foreground group-hover:bg-brand-subtle group-hover:text-brand grid size-10 place-items-center rounded-full transition-colors"
+							class="bg-muted text-muted-foreground group-hover:bg-brand-subtle group-hover:text-brand ease-craft grid size-10 place-items-center rounded-full transition-all duration-300 group-hover:scale-110 motion-reduce:transform-none"
 						>
 							<IconPlus size={20} />
 						</span>
@@ -263,48 +271,72 @@
 						</span>
 					</button>
 
-					{#each filtered as p (p.id)}
-						<div class="group relative" role="listitem">
+					{#each filtered as p, i (p.id)}
+						<div
+							class="group glyphx-card-in relative"
+							role="listitem"
+							style:animation-delay={`${Math.min(i, 12) * 28}ms`}
+						>
+							<!-- Open target: the document/stack. -->
 							<button
 								class="block w-full text-left"
 								onclick={() => onopen?.(p.id)}
 								aria-label={`Open ${p.name}`}
 							>
-								<!-- The "document" — a little page. Shares a view-transition-name
-								     with the editor surface so it morphs into the editor. -->
-								<div
-									class="bg-card border-border shadow-craft-sm group-hover:shadow-craft-md relative aspect-[4/5] overflow-hidden rounded-xl border transition-[transform,box-shadow] duration-200 ease-out group-hover:-translate-y-1 group-active:translate-y-0 group-active:scale-[0.985] motion-reduce:transform-none"
-									style:view-transition-name={projectViewTransitionName(p.id)}
-									style:view-transition-class="morph-surface"
-								>
-									<!-- folded corner -->
+								<!-- The "document" — a little page sitting in front of a fanned
+								     stack of pages. On hover the back cards rise and fan out from
+								     behind, like lifting a folder of papers. Shares a
+								     view-transition-name with the editor surface so it morphs in. -->
+								<div class="relative aspect-[4/5]">
+									<!-- Back-of-stack ghost pages (decorative). Hidden behind the
+									     front page at rest; they settle out on hover. One shared
+									     easing per DESIGN.md — they fade + rise, never bounce. -->
 									<div
-										class="border-border bg-muted/60 absolute top-0 right-0 size-6 border-b border-l"
-										style="clip-path: polygon(100% 0, 0 0, 100% 100%)"
+										aria-hidden="true"
+										class="border-border bg-card shadow-craft-sm ease-craft absolute inset-0 rounded-xl border opacity-0 transition-all duration-300 group-hover:-translate-x-3 group-hover:-translate-y-1 group-hover:-rotate-[5deg] group-hover:scale-[0.97] group-hover:opacity-70 motion-reduce:hidden"
 									></div>
-									<div class="flex h-full flex-col gap-2 p-5 pt-6">
-										<div class="bg-foreground/80 h-2 w-3/5 rounded-full"></div>
-										<div class="mt-2 flex flex-col gap-1.5">
-											{#each lineWidths(p.id) as w, i (i)}
-												<div class="bg-foreground/12 h-1.5 rounded-full" style:width={`${w}%`}></div>
-											{/each}
-										</div>
-										<div class="mt-auto flex items-center gap-1.5">
-											<span class="bg-brand/70 h-1.5 w-1.5 rounded-full"></span>
-											<div class="bg-foreground/12 h-1.5 w-2/5 rounded-full"></div>
+									<div
+										aria-hidden="true"
+										class="border-border bg-card shadow-craft-sm ease-craft absolute inset-0 rounded-xl border opacity-0 transition-all duration-300 group-hover:translate-x-3 group-hover:-translate-y-2 group-hover:rotate-[5deg] group-hover:scale-[0.985] group-hover:opacity-100 motion-reduce:hidden"
+									></div>
+
+									<!-- The front page. -->
+									<div
+										class="bg-card border-border shadow-craft-sm group-hover:shadow-craft-lg ease-craft absolute inset-0 z-10 overflow-hidden rounded-xl border transition-all duration-300 group-hover:-translate-y-1 group-active:translate-y-0 group-active:scale-[0.985] motion-reduce:transform-none"
+										style:view-transition-name={projectViewTransitionName(p.id)}
+										style:view-transition-class="morph-surface"
+									>
+										<!-- folded corner -->
+										<div
+											class="border-border bg-muted/60 absolute top-0 right-0 size-6 border-b border-l"
+											style="clip-path: polygon(100% 0, 0 0, 100% 100%)"
+										></div>
+										<div class="flex h-full flex-col gap-2 p-5 pt-6">
+											<div class="bg-foreground/80 h-2 w-3/5 rounded-full"></div>
+											<div class="mt-2 flex flex-col gap-1.5">
+												{#each lineWidths(p.id) as w, i (i)}
+													<div class="bg-foreground/12 h-1.5 rounded-full" style:width={`${w}%`}></div>
+												{/each}
+											</div>
+											<div class="mt-auto flex items-center gap-1.5">
+												<span class="bg-brand/70 h-1.5 w-1.5 rounded-full"></span>
+												<div class="bg-foreground/12 h-1.5 w-2/5 rounded-full"></div>
+											</div>
 										</div>
 									</div>
 								</div>
+							</button>
 
-								<!-- meta -->
-								<div class="mt-2.5 px-0.5">
+							<!-- Footer: name + meta on the left, the ⋯ actions menu on the
+							     right (rename / duplicate / reveal / delete). -->
+							<div class="mt-2.5 flex items-start justify-between gap-1.5 px-0.5">
+								<div class="min-w-0 flex-1">
 									{#if renaming === p.id}
 										<!-- svelte-ignore a11y_autofocus -->
 										<input
 											bind:value={renameValue}
 											class="bg-card border-border text-foreground focus-visible:border-ring w-full rounded-md border px-1.5 py-0.5 text-sm font-medium outline-none"
 											autofocus
-											onclick={(e) => e.stopPropagation()}
 											onkeydown={(e) => {
 												if (e.key === 'Enter') commitRename(p.id);
 												if (e.key === 'Escape') renaming = null;
@@ -312,42 +344,48 @@
 											onblur={() => commitRename(p.id)}
 										/>
 									{:else}
-										<p class="text-foreground truncate text-sm font-medium">{p.name}</p>
+										<button
+											class="text-foreground hover:text-brand ease-craft block max-w-full truncate text-left text-sm font-medium transition-colors"
+											onclick={() => onopen?.(p.id)}
+										>
+											{p.name}
+										</button>
 									{/if}
 									<p class="text-muted-foreground mt-0.5 truncate text-xs">
 										{#if p.root}
-											<span class="font-mono" title={p.root}>{p.root}</span>
+											<span title={p.root}>Edited {relativeTime(p.updatedAt)}</span>
 										{:else}
 											{p.files.length}
 											{p.files.length === 1 ? 'file' : 'files'} · {relativeTime(p.updatedAt)}
 										{/if}
 									</p>
 								</div>
-							</button>
 
-							<!-- per-card menu (native shadcn dropdown) -->
-							<div class="absolute top-2 left-2">
 								<DropdownMenu>
 									<DropdownMenuTrigger>
 										{#snippet child({ props })}
 											<button
 												{...props}
-												class="bg-card/80 text-muted-foreground hover:text-foreground border-border grid size-7 place-items-center rounded-md border opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+												class="text-muted-foreground hover:bg-muted hover:text-foreground ease-craft -mr-1 grid size-7 shrink-0 place-items-center rounded-md opacity-0 transition-[opacity,colors] duration-200 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
 												title="Project actions"
-												aria-label="Project actions"
-												onclick={(e) => e.stopPropagation()}
+												aria-label={`Actions for ${p.name}`}
 											>
 												<IconDotsVertical size={15} />
 											</button>
 										{/snippet}
 									</DropdownMenuTrigger>
-									<DropdownMenuContent align="start" class="w-40">
+									<DropdownMenuContent align="end" class="w-50">
 										<DropdownMenuItem onclick={() => startRename(p)}>
 											<IconPencil class="text-muted-foreground" /> Rename
 										</DropdownMenuItem>
 										<DropdownMenuItem onclick={() => onduplicate?.(p.id)}>
 											<IconCopy class="text-muted-foreground" /> Duplicate
 										</DropdownMenuItem>
+										{#if onreveal && p.root}
+											<DropdownMenuItem onclick={() => onreveal?.(p.id)} class="whitespace-nowrap">
+												<IconFolderShare class="text-muted-foreground" /> Reveal in file manager
+											</DropdownMenuItem>
+										{/if}
 										<DropdownMenuSeparator />
 										<DropdownMenuItem variant="destructive" onclick={() => ondelete?.(p.id)}>
 											<IconTrash /> Delete
@@ -362,3 +400,26 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	/* Cards settle in on load — fade + a short rise, the one shared easing.
+	   Staggered via inline animation-delay; disabled for reduced motion. */
+	@keyframes glyphx-card-in {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+	.glyphx-card-in {
+		animation: glyphx-card-in 0.42s var(--ease-craft) both;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.glyphx-card-in {
+			animation: none;
+		}
+	}
+</style>

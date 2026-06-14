@@ -3,18 +3,20 @@
    Single source of truth for tokens, consumed by every app via
    `@import '@glyphx/ui/app.css'`.
 
-   Identity: "a calm, monochrome instrument for writing LaTeX."
-   Palette mirrors a strict monochrome reference (keyfold.io): clean near-white
-   neutrals in light, a blue-near-black night in dark, cool-grey muted text,
-   translucent hairlines, ink (near-black) as the primary voice, and ONE
-   rationed emerald accent (#34d399 family) reserved for live/active signals.
-   Restraint is the premium signal — colour is the exception, never the rule.
+   Identity: "editorial monochrome with a single rationed GlyphX blue."
+   Light is clean near-white paper (#FAFBFC); dark is a deep graphite night
+   (#0A0A0C) on graphite-900 cards — graphite, NOT navy (see DESIGN.md). Quiet
+   graphite/zinc greys carry the neutral ladder and muted text; ink (#0A0A0C)
+   is the primary voice; ONE rationed GlyphX blue accent (--brand #007ACC /
+   #1F9CF0) marks active / selected / focused / linked / branded. Target ~90%
+   neutral surfaces, ~10% brand. Restraint is the premium signal — colour is the
+   exception, never the rule.
 
    Token registers:
    - Semantic tokens (--background, --primary, --muted, --border, …) drive the
-     whole component library + editor chrome. These stay monochrome.
-   - --brand (emerald) is the single rationed accent. Never hijack the shadcn
-     neutral --accent (a hover/surface token) for brand colour.
+     whole component library + editor chrome. These stay monochrome slate.
+   - --brand (GlyphX blue) is the single rationed accent. Never hijack the
+     shadcn neutral --accent (a hover/surface token) for brand colour.
    - Marketing helpers (--canvas, --surface-*, --ink*, --hairline) mirror the
      semantic surfaces for the landing layer.
    ============================================================================ */
@@ -42,65 +44,71 @@
    --------------------------------------------------------------------------- */
 :root {
 	
-	/* Surfaces: near-white floor, pure-white cards, near-black ink. */
-	--background: #fafafa;
+	/* Surfaces: near-white paper floor, pure-white cards, an elevated surface,
+	   near-black ink. */
+	--background: #fafbfc;
 	--foreground: #18181b;
 	--card: #ffffff;
 	--card-foreground: #18181b;
+	--surface: #f8fafc;
 	--popover: #ffffff;
 	--popover-foreground: #18181b;
 
-	/* Primary = ink. The monochrome CTA / emphasis voice (NOT the brand colour). */
+	/* Primary = ink (graphite). The monochrome emphasis voice (NOT the brand). */
 	--primary: #0a0a0c;
 	--primary-foreground: #fafafa;
 
-	/* Neutral ladder — quiet zinc greys. */
+	/* Neutral ladder — quiet graphite/zinc greys; accent is a warm hover surface. */
 	--secondary: #f4f4f5;
 	--secondary-foreground: #18181b;
 	--muted: #f4f4f5;
 	--muted-foreground: #6b6b75;
-	--accent: #ececef; /* shadcn hover/surface neutral — deliberately NOT brand */
+	--accent: #ece9e2; /* shadcn hover/surface neutral — deliberately NOT brand */
 	--accent-foreground: #18181b;
 
-	/* Status — error stays distinct from the emerald brand on purpose. */
-	--destructive: #e5484d;
+	/* Status — error / warning / success stay distinct from the brand blue. */
+	--destructive: #ef4444;
 	--destructive-foreground: #ffffff;
-	--success: #0d9373;
+	--success: #10b981;
 	--success-foreground: #ffffff;
-	--warning: #b25e09;
+	--warning: #f59e0b;
 	--warning-foreground: #ffffff;
-	--info: #2f6feb;
+	--info: #007acc;
 	--info-foreground: #ffffff;
 
-	/* Lines & focus — translucent ink hairlines read finer than solid greys. */
+	/* Lines & focus — translucent ink hairlines; the focus ring is brand blue. */
 	--border: rgb(9 9 11 / 0.08);
 	--input: rgb(9 9 11 / 0.12);
-	--ring: #0a0a0c;
+	--ring: #007acc;
 
 	/* Sidebar (one quiet step off the canvas). */
 	--sidebar: #f4f4f5;
 	--sidebar-foreground: #3f3f46;
 	--sidebar-primary: #0a0a0c;
 	--sidebar-primary-foreground: #fafafa;
-	--sidebar-accent: #ececef;
+	--sidebar-accent: #ece9e2;
 	--sidebar-accent-foreground: #18181b;
 	--sidebar-border: rgb(9 9 11 / 0.08);
-	--sidebar-ring: #0a0a0c;
+	--sidebar-ring: #007acc;
 
-	/* Charts — emerald + a monochrome ramp. */
-	--chart-1: #0d9373;
+	/* Charts — brand blue + a graphite ramp. */
+	--chart-1: #007acc;
 	--chart-2: #18181b;
 	--chart-3: #6b6b75;
 	--chart-4: #9a9aa3;
-	--chart-5: #34d399;
+	--chart-5: #1f9cf0;
 
-	/* ---- The single brand accent — a calm emerald, used sparingly. ---- */
-	--brand: #0d9373;
+	/* ---- The single brand accent — GlyphX blue, used sparingly. ---- */
+	--brand: #007acc;
 	--brand-foreground: #ffffff;
-	--brand-subtle: rgb(13 147 115 / 0.10);
+	--brand-hover: #1177bb;
+	--brand-subtle: rgb(0 122 204 / 0.08);
+	/* Official brand gradient — logo / app icon / hero illustrations ONLY.
+	   Never use gradients in general application UI (see DESIGN.md). */
+	--brand-gradient: linear-gradient(135deg, #1f9cf0 0%, #007acc 55%, #1177bb 100%);
 
 	/* Marketing surface mirrors (landing layer). */
-	--canvas: #fafafa;
+	--canvas: #fafbfc;
 	--surface-soft: #f4f4f5;
 	--surface-card: #ffffff;
 	--surface-strong: #e8e8ea;
@@ -148,65 +156,70 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Dark — blue-near-black night (keyfold-mirrored)
+   Dark — deep graphite night (graphite, not navy — DESIGN.md)
    --------------------------------------------------------------------------- */
 .dark {
+	/* Graphite night — graphite-950 floor, graphite-900 cards, graphite-800
+	   elevated surface. Graphite, not navy. */
 	--background: #0a0a0c;
 	--foreground: #ebebeb;
 	--card: #141418;
 	--card-foreground: #ebebeb;
+	--surface: #1c1c22;
 	--popover: #16161a;
 	--popover-foreground: #ebebeb;
 
-	--primary: #fafafa;
+	--primary: #f4f4f5;
 	--primary-foreground: #0a0a0c;
 
 	--secondary: #1a1a1f;
 	--secondary-foreground: #ebebeb;
 	--muted: #16161a;
 	--muted-foreground: #9a9aa3;
-	--accent: #26262b;
+	--accent: #1f1f25;
 	--accent-foreground: #ebebeb;
 
-	--destructive: #f0564b;
+	--destructive: #f87171;
 	--destructive-foreground: #1a0e0c;
 	--success: #34d399;
 	--success-foreground: #07140c;
-	--warning: #e0a93b;
+	--warning: #fbbf24;
 	--warning-foreground: #1b1607;
-	--info: #5a9efb;
-	--info-foreground: #050b1c;
+	--info: #1f9cf0;
+	--info-foreground: #04121f;
 
 	--border: rgb(255 255 255 / 0.08);
 	--input: rgb(255 255 255 / 0.12);
-	--ring: #e8e8ea;
+	--ring: #1f9cf0;
 
+	/* Sidebar one quiet step off the floor. */
 	--sidebar: #0c0c0f;
 	--sidebar-foreground: #c8c8cf;
-	--sidebar-primary: #fafafa;
+	--sidebar-primary: #f4f4f5;
 	--sidebar-primary-foreground: #0a0a0c;
-	--sidebar-accent: #1a1a1f;
+	--sidebar-accent: #1f1f25;
 	--sidebar-accent-foreground: #ebebeb;
 	--sidebar-border: rgb(255 255 255 / 0.07);
-	--sidebar-ring: #e8e8ea;
+	--sidebar-ring: #1f9cf0;
 
-	--chart-1: #34d399;
+	--chart-1: #1f9cf0;
 	--chart-2: #ebebeb;
 	--chart-3: #9a9aa3;
 	--chart-4: #5d5d68;
-	--chart-5: #2bd49a;
+	--chart-5: #38b6ff;
 
-	--brand: #34d399;
-	--brand-foreground: #07140c;
-	--brand-subtle: rgb(52 211 153 / 0.12);
+	--brand: #1f9cf0;
+	--brand-foreground: #0a0a0c;
+	--brand-hover: #38b6ff;
+	--brand-subtle: rgb(31 156 240 / 0.12);
 
 	--canvas: #0a0a0c;
 	--surface-soft: #131316;
 	--surface-card: #16161a;
 	--surface-strong: #1f1f25;
-	--surface-1: #16161a;
-	--surface-2: #1f1f25;
-	--inverse-canvas: #fafafa;
+	--surface-1: #141418;
+	--surface-2: #1c1c22;
+	--inverse-canvas: #f4f4f5;
 	--ink: #ebebeb;
 	--ink-body: #c8c8cf;
 	--ink-muted: #9a9aa3;
@@ -224,6 +237,7 @@
 	--color-foreground: var(--foreground);
 	--color-card: var(--card);
 	--color-card-foreground: var(--card-foreground);
+	--color-surface: var(--surface);
 	--color-popover: var(--popover);
 	--color-popover-foreground: var(--popover-foreground);
 	--color-primary: var(--primary);
@@ -264,6 +278,7 @@
 	/* The single brand accent + marketing surface mirrors. */
 	--color-brand: var(--brand);
 	--color-brand-foreground: var(--brand-foreground);
+	--color-brand-hover: var(--brand-hover);
 	--color-brand-subtle: var(--brand-subtle);
 	--color-canvas: var(--canvas);
 	--color-surface-soft: var(--surface-soft);
@@ -309,7 +324,7 @@
 		'Geist Mono Variable', 'Geist Mono', 'JetBrains Mono Variable',
 		ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 
-	/* craft-* shadows — neutral, low-alpha. Depth from light, never heavy. */
+	/* craft-* shadows — neutral graphite, low-alpha. Depth from light, never heavy. */
 	--shadow-craft-sm: 0 1px 2px 0 rgb(9 9 11 / 0.06), 0 1px 1px -1px rgb(9 9 11 / 0.05);
 	--shadow-craft-lg: 0 12px 32px -10px rgb(9 9 11 / 0.12), 0 4px 12px -6px rgb(9 9 11 / 0.07);
 	--shadow-craft-floating: 0 22px 54px -16px rgb(9 9 11 / 0.20), 0 8px 18px -10px rgb(9 9 11 / 0.10);

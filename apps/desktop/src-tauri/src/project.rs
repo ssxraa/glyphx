@@ -137,6 +137,63 @@ pub fn path_exists(path: String) -> bool {
     Path::new(&path).exists()
 }
 
+/// Starter document for a brand-new project.
+const STARTER_TEX: &str = r#"% New document
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx} % \includegraphics for figures
+
+\title{Untitled}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+Start writing here.
+
+\end{document}
+"#;
+
+/// Make a string safe as a folder name (strip characters Windows/macOS reject,
+/// and leading/trailing dots/spaces), falling back to a default.
+fn sanitize_name(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| {
+            if matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || c.is_control() {
+                '-'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let trimmed = cleaned.trim().trim_matches('.').trim();
+    if trimmed.is_empty() {
+        "Untitled project".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// Create a brand-new project folder in the app's own data directory (no save
+/// prompt — projects live here by default; the user can still Import or Open a
+/// folder elsewhere). Writes a starter `main.tex` and returns the project root.
+#[tauri::command]
+pub fn create_local_project(app: tauri::AppHandle, name: String) -> Result<String, String> {
+    use tauri::Manager;
+    let base = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("projects");
+    fs::create_dir_all(&base).map_err(|e| e.to_string())?;
+    let root = unique_dir(&base, &sanitize_name(&name));
+    fs::create_dir_all(&root).map_err(|e| e.to_string())?;
+    fs::write(root.join("main.tex"), STARTER_TEX).map_err(|e| e.to_string())?;
+    Ok(root.to_string_lossy().into_owned())
+}
+
 /// Choose a non-colliding folder name inside `parent` based on `stem`.
 fn unique_dir(parent: &Path, stem: &str) -> PathBuf {
     let mut candidate = parent.join(stem);
