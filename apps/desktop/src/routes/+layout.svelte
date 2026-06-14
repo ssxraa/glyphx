@@ -2,6 +2,7 @@
 	import { goto, onNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { launch } from '$lib/launch';
+	import { prefetchCommonPackagesOnce } from '$lib/prefetch';
 	import { projectHost } from '$lib/project';
 	import { initTauriTheme } from '$lib/tauri-theme';
 	import { updater } from '$lib/updater.svelte';
@@ -25,6 +26,15 @@
 	// Kick off a silent background update check on boot. Surfaces the corner
 	// card only if a newer release exists; no-op under `tauri dev` / web.
 	onMount(() => updater.init());
+
+	// Warm the common LaTeX package cache on first launch so the first offline
+	// compile just works — done once (localStorage-gated) and deferred so it
+	// never competes with first paint. Best-effort: retries on a later launch
+	// if offline / the engine isn't ready.
+	onMount(() => {
+		const t = setTimeout(() => void prefetchCommonPackagesOnce(), 2500);
+		return () => clearTimeout(t);
+	});
 
 	// Page transitions via the View Transitions API. The projects home and the
 	// editor share a per-project `view-transition-name`, so the clicked card

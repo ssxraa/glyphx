@@ -35,6 +35,8 @@ fn reg_escape(s: &str) -> String {
 fn register_windows_folder_menu() -> Result<String, String> {
     use std::process::Command;
 
+    use crate::subprocess::CommandExt as _;
+
     let exe = std::env::current_exe()
         .map_err(|e| e.to_string())?
         .to_string_lossy()
@@ -64,6 +66,7 @@ fn register_windows_folder_menu() -> Result<String, String> {
     let status = Command::new("reg")
         .arg("import")
         .arg(&tmp)
+        .no_window()
         .status()
         .map_err(|e| e.to_string())?;
     let _ = std::fs::remove_file(&tmp);

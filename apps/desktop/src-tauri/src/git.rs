@@ -13,6 +13,8 @@ use serde::Serialize;
 use gix::bstr::{BString, ByteSlice};
 use gix::index::entry::{Flags, Mode, Stat};
 
+use crate::subprocess::CommandExt as _;
+
 fn open(root: &str) -> Result<gix::Repository, String> {
     gix::open(root).map_err(|e| e.to_string())
 }
@@ -28,6 +30,7 @@ where
         .arg("-C")
         .arg(root)
         .args(args)
+        .no_window()
         .output()
         .map_err(|e| {
             format!("Could not run git — Git needs to be installed to sync with a remote. ({e})")
@@ -52,6 +55,7 @@ where
 pub fn git_available() -> bool {
     Command::new("git")
         .arg("--version")
+        .no_window()
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
@@ -812,6 +816,7 @@ pub async fn git_sync(
         .arg("-C")
         .arg(&root)
         .args(&pull_args)
+        .no_window()
         .output()
         .map_err(|e| {
             format!("Could not run git — Git needs to be installed to sync with a remote. ({e})")

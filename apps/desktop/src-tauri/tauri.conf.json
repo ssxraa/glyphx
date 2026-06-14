@@ -29,6 +29,7 @@
 	"bundle": {
 		"active": true,
 		"targets": "all",
+		"publisher": "Nexonauts",
 		"externalBin": [
 			"binaries/tectonic"
 		],
@@ -46,7 +47,8 @@
 				],
 				"name": "LaTeX Document",
 				"description": "LaTeX source document",
-				"role": "Editor"
+				"role": "Editor",
+				"mimeType": "text/x-tex"
 			},
 			{
 				"ext": [
@@ -54,7 +56,8 @@
 				],
 				"name": "GlyphX Project",
 				"description": "GlyphX LaTeX project",
-				"role": "Editor"
+				"role": "Editor",
+				"mimeType": "application/x-glyphx-project"
 			}
 		],
 		"windows": {

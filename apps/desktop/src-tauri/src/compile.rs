@@ -17,6 +17,8 @@ use std::process::Command;
 use base64::{engine::general_purpose, Engine as _};
 use serde::Serialize;
 
+use crate::subprocess::CommandExt as _;
+
 #[derive(Serialize)]
 pub struct CompileResult {
     /// Whether a PDF was produced.
@@ -156,6 +158,7 @@ fn run_tectonic(
 
     let bin = find_tectonic(app);
     let mut cmd = Command::new(&bin);
+    cmd.no_window();
     cmd.arg("--outdir")
         .arg(outdir)
         .arg("--keep-logs")
@@ -303,6 +306,7 @@ fn run_latexmk(
         .unwrap_or_else(|| "main".to_string());
 
     let mut cmd = Command::new("latexmk");
+    cmd.no_window();
     cmd.arg(latexmk_engine_flag(program))
         // `-f` (force) keeps building through errors so we still get a
         // best-effort PDF; nonstopmode stops the engine from prompting.
@@ -371,7 +375,11 @@ pub struct SystemTexInfo {
 
 /// Probe a binary by running `<name> --version`; returns its first output line.
 fn probe_bin(name: &str) -> Option<String> {
-    let out = Command::new(name).arg("--version").output().ok()?;
+    let out = Command::new(name)
+        .arg("--version")
+        .no_window()
+        .output()
+        .ok()?;
     if !out.status.success() {
         return None;
     }

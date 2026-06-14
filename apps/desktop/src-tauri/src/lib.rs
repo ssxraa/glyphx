@@ -3,6 +3,7 @@ mod engine;
 mod git;
 mod project;
 mod shell_integration;
+mod subprocess;
 
 use std::sync::Mutex;
 
