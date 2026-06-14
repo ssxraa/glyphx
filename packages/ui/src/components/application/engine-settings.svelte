@@ -237,11 +237,9 @@
 		/>
 		<p class="text-muted-foreground text-[11px] leading-relaxed">
 			{#if settings.engineKind === 'system'}
-				Uses your local TeX install via latexmk (pdfLaTeX / XeLaTeX / LuaLaTeX). Best for
-				documents Tectonic can't render — e.g. images it rejects with “Division by 0”.
+				Your local TeX install, via latexmk.
 			{:else}
-				Bundled, zero-install LaTeX (XeTeX). Downloads packages on demand. No TeX installation
-				required.
+				Bundled LaTeX — no setup, packages fetched on demand.
 			{/if}
 		</p>
 	</div>
@@ -298,10 +296,6 @@
 
 	{#if loading}
 		<p class="text-muted-foreground text-xs">Checking available versions…</p>
-	{:else if !loaded}
-		<p class="text-muted-foreground text-xs">
-			Available Tectonic versions — download or switch, no rebuild needed.
-		</p>
 	{/if}
 
 	{#if versions.length}
@@ -375,10 +369,6 @@
 					<span class="text-muted-foreground/70 text-xs tabular-nums">{fmtBytes(cache.bytes)}</span>
 				{/if}
 			</div>
-			<p class="text-muted-foreground text-[11px] leading-relaxed">
-				Packages download on demand and cache here for offline use. Pre-warm common ones, or clear
-				to reclaim space.
-			</p>
 			<div class="flex gap-1.5">
 				{#if engine.prefetch}
 					<Button variant="outline" size="xs" onclick={prefetch} disabled={prefetching}>

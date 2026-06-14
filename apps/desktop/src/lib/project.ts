@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
+import { readFile } from '@tauri-apps/plugin-fs';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import type { ProjectFile, ProjectHost } from '@glyphx/ui/application';
 
@@ -28,6 +29,7 @@ export const projectHost: ProjectHost = {
 
 	readFiles: (root) => invoke<ProjectFile[]>('read_project_files', { root }),
 	readFile: (abs) => invoke<string>('read_file_text', { path: abs }),
+	readFileBytes: (abs) => readFile(abs),
 	writeFile: (abs, content) => invoke<void>('write_file_text', { path: abs, content }),
 	createEntry: (abs, dir) => invoke<void>('create_path', { path: abs, dir }),
 	rename: (from, to) => invoke<void>('rename_path', { from, to }),

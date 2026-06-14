@@ -81,6 +81,7 @@ Nothing is uploaded. Nothing leaves this device.
     IconDeviceFloppy,
     IconDownload,
     IconEye,
+    IconFolderShare,
     IconLayoutColumns,
     IconLoader2,
     IconMinus,
@@ -93,8 +94,15 @@ Nothing is uploaded. Nothing leaves this device.
 
   import AboutDialog from "./about-dialog.svelte";
   import ActivityBar, { type ActivityView } from "./activity-bar.svelte";
+  import AssetViewer from "./asset-viewer.svelte";
   import { applyCase } from "./case-preserve";
   import CodeEditor from "./code-editor.svelte";
+  import {
+    classifyFile,
+    editorLanguage,
+    isEditable,
+    type FileKind,
+  } from "./file-kinds";
   import CommandPalette from "./command-palette.svelte";
   import EditorFindBar from "./editor-find-bar.svelte";
   import type { EngineManager } from "./engine-settings.svelte";
@@ -242,6 +250,24 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   let mainId = $state<string | null>(null);
 
   const activeFile = $derived(files.find((f) => f.id === activeId) ?? files[0]);
+
+  // --- Active file kind (drives editor vs image/PDF/unsupported rendering) ---
+  // Files that turned out to be unreadable as text (binary with a text-y name)
+  // get demoted to "binary" so we show the fallback instead of mojibake.
+  let unreadableIds = $state<Set<string>>(new Set());
+  const activeKind = $derived<FileKind>(
+    !activeFile
+      ? "text"
+      : unreadableIds.has(activeFile.id)
+        ? "binary"
+        : classifyFile(activeFile.name),
+  );
+  const activeEditable = $derived(isEditable(activeKind));
+  const activeLanguage = $derived(editorLanguage(activeKind));
+  // The whole LaTeX family (sources, .bib, .toc, .aux …) gets the format toolbar;
+  // markdown / plain text / code do not.
+  const activeHasToolbar = $derived(activeKind === "latex");
+
   // Project name shown in chrome: the open folder's name, else the prop default.
   const displayName = $derived(
     projectRoot ? baseName(projectRoot) : projectName,
@@ -347,16 +373,22 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     if (settings.autoSave !== "off") await saveActive();
     activeId = id;
     const f = files.find((x) => x.id === id);
-    if (f && project && f.path && !f.loaded) {
+    // Only editable kinds get a text buffer; images / PDFs / binaries are read
+    // lazily as bytes by the AssetViewer, so we never read them as text here.
+    const editable = f ? isEditable(classifyFile(f.name)) : true;
+    if (f && project && f.path && !f.loaded && editable) {
       try {
         f.content = await project.readFile(f.path);
-      } catch (e) {
-        f.content = `% Could not open this file — it may be binary or unreadable.\n% ${e}\n`;
+        f.saved = f.content;
+        f.loaded = true;
+      } catch {
+        // A text-looking name that's actually binary → fall back to the viewer.
+        unreadableIds = new Set(unreadableIds).add(f.id);
+        f.content = "";
+        f.loaded = true;
       }
-      f.loaded = true;
-      f.saved = f.content;
     }
-    source = f?.content ?? "";
+    source = f && editable && !unreadableIds.has(f.id) ? (f.content ?? "") : "";
   }
 
   // --- Git working-tree status (for the Explorer "M / U / A" labels) --------
@@ -1092,6 +1124,16 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     }
   }
 
+  /** Reveal the active file in the OS file manager (used by the asset viewer). */
+  async function revealActiveFile(): Promise<void> {
+    if (!project?.revealInOS || !activeFile?.path) return;
+    try {
+      await project.revealInOS(activeFile.path);
+    } catch (e) {
+      toast.error(`Could not reveal the file — ${e}`);
+    }
+  }
+
   /** Register the OS "Open with GlyphX" folder integration (desktop, Windows). */
   async function registerShell(): Promise<void> {
     if (!project?.registerShellIntegration) return;
@@ -1232,9 +1274,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   let shellW = $state(2560);
   let sidebarW = $state(300);
   let resizingSidebar = $state(false);
-  const ACTIVITY_BAR_PX = 48; // the w-12 rail left of the panel
+  const ACTIVITY_BAR_PX = 48; // the w-12 rail beside the panel
   const maxSidebar = $derived(Math.max(200, Math.round(shellW * 0.3)));
   const sidebarWidth = $derived(Math.min(sidebarW, maxSidebar));
+  // VS Code-style: the activity bar + side panel can dock on either edge.
+  const sidebarRight = $derived(settings.sidebarPosition === "right");
 
   $effect(() => {
     if (!shellEl || typeof ResizeObserver === "undefined") return;
@@ -1254,7 +1298,11 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   function onPointerMove(e: PointerEvent) {
     if (resizingSidebar && shellEl) {
       const rect = shellEl.getBoundingClientRect();
-      const w = e.clientX - rect.left - ACTIVITY_BAR_PX;
+      // Docked right, the panel grows as the cursor moves left, so measure from
+      // the opposite edge (both layouts skip the fixed-width activity bar).
+      const w = sidebarRight
+        ? rect.right - ACTIVITY_BAR_PX - e.clientX
+        : e.clientX - rect.left - ACTIVITY_BAR_PX;
       sidebarW = Math.min(maxSidebar, Math.max(200, w));
       return;
     }
@@ -1942,9 +1990,17 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     </div>
   </header>
 
-  <!-- Body -->
-  <div bind:this={shellEl} class="flex min-h-0 flex-1">
-    <ActivityBar active={activeView} onselect={selectView} />
+  <!-- Body — `flex-row-reverse` docks the rail + side panel on the right edge
+       (VS Code's "move primary side bar right"); the editor keeps the rest. -->
+  <div
+    bind:this={shellEl}
+    class="flex min-h-0 flex-1 {sidebarRight ? 'flex-row-reverse' : ''}"
+  >
+    <ActivityBar
+      active={activeView}
+      onselect={selectView}
+      position={settings.sidebarPosition}
+    />
 
     <!-- Smooth collapse + drag-to-resize (panel stays mounted; capped at 20%). -->
     <div
@@ -2032,15 +2088,24 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
               : ''}"
             style={viewMode === "split" ? `width:${splitPct}%` : "width:100%"}
           >
+            {#if activeEditable}
             <div
               class="text-muted-foreground border-border flex h-9 shrink-0 items-center gap-2 border-b px-2 text-xs"
             >
-              <FormatToolbar
-                wrap={(b, a) => editor?.wrapSelection(b, a)}
-                insert={(t) => editor?.insertText(t)}
-              />
+              <!-- The LaTeX format toolbar is only meaningful for TeX *source*;
+                   aux files, markdown and code just get a kind label. -->
+              {#if activeHasToolbar}
+                <FormatToolbar
+                  wrap={(b, a) => editor?.wrapSelection(b, a)}
+                  insert={(t) => editor?.insertText(t)}
+                />
+              {:else}
+                <span class="text-muted-foreground/60 pl-1">
+                  {activeKind === "markdown" ? "Markdown" : "Plain text"}
+                </span>
+              {/if}
 
-              <!-- Right cluster: save, history, find, sync. -->
+              <!-- Right cluster: save, history, find. -->
               <div class="ml-auto flex shrink-0 items-center gap-1 pl-1">
                 <button
                   class="hover:bg-muted hover:text-foreground relative grid size-6 place-items-center rounded transition-colors disabled:pointer-events-none disabled:opacity-40"
@@ -2098,6 +2163,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                 docKey={activeId}
                 theme={settings.resolved}
                 grammar={settings.grammar}
+                language={activeLanguage}
                 fontSize={settings.fontSize}
                 fontFamily={settings.fontStack}
                 lineWrapping={settings.lineWrapping}
@@ -2117,6 +2183,38 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                 onreplaceall={replaceAll}
                 onclose={closeFind}
               />
+            {/if}
+            {:else}
+              <!-- Non-text file (image / PDF / unsupported): a slim header with a
+                   reveal action, then the AssetViewer renders it directly. -->
+              <div
+                class="text-muted-foreground border-border flex h-9 shrink-0 items-center justify-between gap-2 border-b px-2 text-xs"
+              >
+                <span class="truncate pl-1" title={activeFile?.name}>
+                  {baseName(activeFile?.name ?? "")}
+                </span>
+                {#if project?.revealInOS && activeFile?.path}
+                  <button
+                    class="hover:bg-muted hover:text-foreground grid size-6 shrink-0 place-items-center rounded transition-colors"
+                    title="Reveal in folder"
+                    aria-label="Reveal in folder"
+                    onclick={revealActiveFile}
+                  >
+                    <IconFolderShare size={15} />
+                  </button>
+                {/if}
+              </div>
+              <div class="min-h-0 flex-1">
+                <AssetViewer
+                  kind={activeKind}
+                  name={activeFile?.name ?? ""}
+                  path={activeFile?.path}
+                  readBytes={project?.readFileBytes}
+                  onreveal={project?.revealInOS && activeFile?.path
+                    ? revealActiveFile
+                    : undefined}
+                />
+              </div>
             {/if}
           </section>
         {/if}

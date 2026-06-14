@@ -56,6 +56,7 @@
 		canRedo = $bindable(false),
 		theme = "light" as "light" | "dark",
 		grammar = "legacy" as LatexGrammar,
+		language = "latex" as "latex" | "markdown" | "plain",
 		fontSize = 13,
 		fontFamily = "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
 		lineWrapping = false,
@@ -72,6 +73,9 @@
 		canRedo?: boolean;
 		theme?: "light" | "dark";
 		grammar?: LatexGrammar;
+		/** Highlighting mode. `latex` uses the LaTeX parser; `markdown`/`plain`
+		 *  drive non-TeX files (READMEs, code) so they aren't mis-highlighted. */
+		language?: "latex" | "markdown" | "plain";
 		fontSize?: number;
 		fontFamily?: string;
 		lineWrapping?: boolean;
@@ -85,6 +89,13 @@
 	let view = $state<EditorView>();
 	// Last document the undo history belongs to (non-reactive, view-local).
 	let lastDocKey: string | null = null;
+
+	// The active highlighting extension for the current language/grammar. Only
+	// LaTeX gets a real parser; markdown / plain (READMEs, code) stay unhighlighted
+	// so we don't pull in a grammar package per language.
+	function langExtension(lang: "latex" | "markdown" | "plain", g: LatexGrammar) {
+		return lang === "latex" ? latexLanguage(g) : [];
+	}
 
 	const themeC = new Compartment();
 	const langC = new Compartment();
@@ -121,6 +132,7 @@
 			value,
 			theme,
 			grammar,
+			language,
 			fontSize,
 			fontFamily,
 			lineWrapping,
@@ -156,7 +168,7 @@
 					indentWithTab,
 				]),
 				baseTheme,
-				langC.of(latexLanguage(init.grammar)),
+				langC.of(langExtension(init.language, init.grammar)),
 				themeC.of(jetbrainsTheme(init.theme)),
 				fontC.of(fontExtension(init.fontSize, init.fontFamily)),
 				wrapC.of(init.lineWrapping ? EditorView.lineWrapping : []),
@@ -192,7 +204,8 @@
 	$effect(() => {
 		const v = view;
 		const g = grammar;
-		if (v) v.dispatch({ effects: langC.reconfigure(latexLanguage(g)) });
+		const lang = language;
+		if (v) v.dispatch({ effects: langC.reconfigure(langExtension(lang, g)) });
 	});
 	$effect(() => {
 		const v = view;

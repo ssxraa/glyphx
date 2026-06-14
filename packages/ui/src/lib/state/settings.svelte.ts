@@ -19,6 +19,8 @@ export type LatexGrammar = "legacy" | "lezer";
 export type EditorFont = "jetbrains" | "geist";
 /** Source Control changes layout: flat list vs collapsible folder tree. */
 export type GitView = "tree" | "list";
+/** Which side of the workbench the activity bar + side panel dock on. */
+export type SidebarPosition = "left" | "right";
 /**
  * When edits are written back to disk (VS Code parity):
  *  - `off`            — only on an explicit save (⌘/Ctrl+S).
@@ -99,6 +101,7 @@ export const AUTO_SAVE_DELAY_MS = 1000;
 export const APPEARANCE_KEY = "glyphx:appearance";
 export const EDITOR_KEY = "glyphx:editor";
 export const GIT_VIEW_KEY = "glyphx:git-view";
+export const SIDEBAR_POSITION_KEY = "glyphx:sidebar-position";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -106,6 +109,7 @@ class SettingsStore {
 	#appearance = new PersistedState<Appearance>(APPEARANCE_KEY, "system");
 	#editor = new PersistedState<EditorSettings>(EDITOR_KEY, EDITOR_DEFAULTS);
 	#gitView = new PersistedState<GitView>(GIT_VIEW_KEY, "tree");
+	#sidebarPosition = new PersistedState<SidebarPosition>(SIDEBAR_POSITION_KEY, "left");
 
 	/** OS preference. Light on the server; corrected on the client. */
 	#system = $state<ResolvedTheme>("light");
@@ -254,6 +258,14 @@ class SettingsStore {
 	}
 	set gitView(value: GitView) {
 		this.#gitView.current = value;
+	}
+
+	/** Which side the activity bar + side panel dock on (persisted). */
+	get sidebarPosition(): SidebarPosition {
+		return this.#sidebarPosition.current;
+	}
+	set sidebarPosition(value: SidebarPosition) {
+		this.#sidebarPosition.current = value;
 	}
 }
 

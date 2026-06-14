@@ -13,8 +13,14 @@
 	 */
 	let {
 		active = 'files',
-		onselect
-	}: { active?: ActivityView; onselect?: (view: ActivityView) => void } = $props();
+		onselect,
+		position = 'left'
+	}: {
+		active?: ActivityView;
+		onselect?: (view: ActivityView) => void;
+		/** Which workbench edge the rail docks on — flips its divider border. */
+		position?: 'left' | 'right';
+	} = $props();
 
 	const top: { id: ActivityView; label: string; icon: typeof IconFiles }[] = [
 		{ id: 'files', label: 'Explorer', icon: IconFiles },
@@ -24,7 +30,10 @@
 </script>
 
 <nav
-	class="bg-card border-border flex w-12 shrink-0 flex-col items-center gap-1.5 border-r py-2"
+	class="bg-card border-border flex w-12 shrink-0 flex-col items-center gap-1.5 py-2 {position ===
+	'right'
+		? 'border-l'
+		: 'border-r'}"
 	aria-label="Views"
 >
 	{#each top as item (item.id)}

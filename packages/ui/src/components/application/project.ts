@@ -22,6 +22,8 @@ export type ProjectHost = {
 	readFiles: (root: string) => Promise<ProjectFile[]>;
 	/** Read a text file (rejects binary / non-UTF-8). */
 	readFile: (abs: string) => Promise<string>;
+	/** Read a file's raw bytes — used to preview images / PDFs in the webview. */
+	readFileBytes?: (abs: string) => Promise<Uint8Array>;
 	/** Write (overwrite) a text file, creating parent folders. */
 	writeFile: (abs: string, content: string) => Promise<void>;
 	/** Create a new empty file (or folder when `dir`). */

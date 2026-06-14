@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { Button } from '@glyphx/ui/button';
 	import { PanelSection } from '@glyphx/ui/panel-section';
-	import { Segmented } from '@glyphx/ui/segmented';
-	import { SliderControl } from '@glyphx/ui/slider-control';
+	import {
+	  Select,
+	  SelectContent,
+	  SelectItem,
+	  SelectTrigger
+	} from '@glyphx/ui/select';
 	import {
 	  AUTO_SAVE_LABELS,
 	  EDITOR_FONT_LABELS,
@@ -10,9 +14,11 @@
 	  type Appearance,
 	  type AutoSaveMode,
 	  type EditorFont,
-	  type LatexGrammar
+	  type LatexGrammar,
+	  type SidebarPosition
 	} from '@glyphx/ui/settings';
 	import { SettingsField } from '@glyphx/ui/settings-field';
+	import { SliderControl } from '@glyphx/ui/slider-control';
 	import { Switch } from '@glyphx/ui/switch';
 	import {
 	  IconChevronDown,
@@ -56,7 +62,7 @@
 
 	/**
 	 * SidePanel — content for the active rail view. Explorer switches files;
-	 * Settings edits the live preferences (Segmented choices + Mac-style
+	 * Settings edits the live preferences (single-choice dropdowns + Mac-style
 	 * switches). Search is a full find/replace panel wired to the editor. Git is
 	 * a placeholder.
 	 */
@@ -324,6 +330,10 @@
 		{ value: 'dark', label: 'Dark' },
 		{ value: 'system', label: 'System' }
 	];
+	const sidebarOpts: { value: SidebarPosition; label: string }[] = [
+		{ value: 'left', label: 'Left' },
+		{ value: 'right', label: 'Right' }
+	];
 	const grammarOpts: { value: LatexGrammar; label: string }[] = [
 		{ value: 'legacy', label: 'stex' },
 		{ value: 'lezer', label: 'lezer' }
@@ -424,7 +434,10 @@
 </script>
 
 <aside
-	class="bg-card border-border flex h-full min-h-0 shrink-0 flex-col border-r"
+	class="bg-card border-border flex h-full min-h-0 shrink-0 flex-col {settings.sidebarPosition ===
+	'right'
+		? 'border-l'
+		: 'border-r'}"
 	style:width={`${widthPx}px`}
 	aria-label={heading}
 >
@@ -843,52 +856,75 @@
 				</div>
 			{/if}
 		{:else}
+			<!-- A single-choice setting: label on the left, a compact dropdown on the
+			     right (label + control share one line to save vertical space). -->
+			{#snippet selectField(
+				label: string,
+				opts: readonly { value: string; label: string }[],
+				current: string,
+				onChange: (v: string) => void,
+				description = ''
+			)}
+				<SettingsField size="sm" {label} {description} layout="row">
+					<Select type="single" value={current} onValueChange={onChange}>
+						<SelectTrigger size="sm" class="min-w-[7.5rem] text-xs" aria-label={label}>
+							{opts.find((o) => o.value === current)?.label ?? current}
+						</SelectTrigger>
+						<SelectContent>
+							{#each opts as o (o.value)}
+								<SelectItem value={o.value}>{o.label}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				</SettingsField>
+			{/snippet}
+
 			<!-- Settings — grouped into titled PanelSections (recast property-panel
 			     pattern): a small uppercase section label over compact fields, with
-			     controls right-aligned on a row or stacked full-width. -->
+			     single-choice controls as right-aligned dropdowns to save space. -->
 			<div class="flex flex-col gap-4 px-1 pt-1 pb-3">
 				<PanelSection title="Appearance">
-					<SettingsField size="sm" label="Theme">
-						<Segmented
-							options={appearanceOpts}
-							value={settings.appearance}
-							onValueChange={(v) => (settings.appearance = v)}
-							size="sm"
-							aria-label="Appearance"
-						/>
-					</SettingsField>
+					{@render selectField(
+						'Theme',
+						appearanceOpts,
+						settings.appearance,
+						(v) => (settings.appearance = v as Appearance)
+					)}
+				</PanelSection>
+
+				<PanelSection title="Layout">
+					{@render selectField(
+						'Side panel',
+						sidebarOpts,
+						settings.sidebarPosition,
+						(v) => (settings.sidebarPosition = v as SidebarPosition)
+					)}
 				</PanelSection>
 
 				<PanelSection title="Editor">
-					<SettingsField size="sm" label="Font">
-						<Segmented
-							options={fontOpts}
-							value={settings.font}
-							onValueChange={(v) => (settings.font = v)}
-							size="sm"
-							aria-label="Editor font"
-						/>
-					</SettingsField>
+					{@render selectField(
+						'Font',
+						fontOpts,
+						settings.font,
+						(v) => (settings.font = v as EditorFont)
+					)}
 
 					<SliderControl
 						label="Font size"
 						value={settings.fontSize}
-						min={10}
-						max={24}
-						step={1}
+						min={8}
+						max={80}
+						step={2}
 						unit="px"
 						onchange={(v) => (settings.fontSize = v)}
 					/>
 
-					<SettingsField size="sm" label="LaTeX grammar">
-						<Segmented
-							options={grammarOpts}
-							value={settings.grammar}
-							onValueChange={(v) => (settings.grammar = v)}
-							size="sm"
-							aria-label="LaTeX grammar"
-						/>
-					</SettingsField>
+					{@render selectField(
+						'LaTeX grammar',
+						grammarOpts,
+						settings.grammar,
+						(v) => (settings.grammar = v as LatexGrammar)
+					)}
 
 					<SettingsField size="sm" label="Line wrapping" layout="row">
 						<Switch
@@ -900,12 +936,7 @@
 				</PanelSection>
 
 				<PanelSection title="Compilation">
-					<SettingsField
-						size="sm"
-						label="Live compile"
-						description="Recompile automatically when a file is saved."
-						layout="row"
-					>
+					<SettingsField size="sm" label="Live compile" layout="row">
 						<Switch
 							checked={settings.autoCompile}
 							onCheckedChange={(v) => (settings.autoCompile = v)}
@@ -913,19 +944,12 @@
 						/>
 					</SettingsField>
 
-					<SettingsField
-						size="sm"
-						label="Auto save"
-						description="When edits are written to disk. The preview always uses the last saved version."
-					>
-						<Segmented
-							options={autoSaveOpts}
-							value={settings.autoSave}
-							onValueChange={(v) => (settings.autoSave = v)}
-							size="sm"
-							aria-label="Auto save"
-						/>
-					</SettingsField>
+					{@render selectField(
+						'Auto save',
+						autoSaveOpts,
+						settings.autoSave,
+						(v) => (settings.autoSave = v as AutoSaveMode)
+					)}
 				</PanelSection>
 
 				{#if engine}
@@ -936,18 +960,14 @@
 
 				{#if onregistershell}
 					<PanelSection title="System">
-						<SettingsField
-							size="sm"
-							label="System integration"
-							description="Add an “Open with GlyphX” entry to the folder right-click menu. (.tex and .glyx files are associated by the installer.)"
-						>
+						<SettingsField size="sm" label="Shell integration" layout="row">
 							<Button
 								variant="outline"
 								size="xs"
-								class="self-start"
+								title="Add an “Open with GlyphX” entry to the folder right-click menu"
 								onclick={() => onregistershell?.()}
 							>
-								Add “Open with GlyphX”
+								Add to menu
 							</Button>
 						</SettingsField>
 					</PanelSection>
