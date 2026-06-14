@@ -79,6 +79,8 @@
 		engine,
 		git,
 		projectRoot = null,
+		onopendiff,
+		activeDiffPath = null,
 		dirtyIds = new Set(),
 		gitStatus = {},
 		onopen,
@@ -124,6 +126,10 @@
 		git?: GitProvider;
 		/** Absolute path of the open project folder, for Git operations. */
 		projectRoot?: string | null;
+		/** Open a changed file's diff in the editor pane (Source Control click). */
+		onopendiff?: (path: string, staged: boolean) => void;
+		/** Path currently shown in the editor's diff view, to highlight its row. */
+		activeDiffPath?: string | null;
 		/** Ids of files with unsaved edits (shown as "modified" dots in the tree). */
 		dirtyIds?: Set<string>;
 		/** File id → Git working-tree status word ("modified" / "untracked" / …). */
@@ -846,6 +852,8 @@
 					root={projectRoot}
 					refreshKey={gitRefreshKey}
 					onstatechange={(s) => (gitState = s)}
+					{onopendiff}
+					{activeDiffPath}
 				/>
 			{:else}
 				<div

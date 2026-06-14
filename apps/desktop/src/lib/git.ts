@@ -16,6 +16,7 @@ export const gitProvider: GitProvider = {
 	unstage: (root, paths) => invoke('git_unstage', { root, paths }),
 	discard: (root, paths) => invoke('git_discard', { root, paths }),
 	diff: (root, path, staged) => invoke('git_diff', { root, path, staged }),
+	fileVersions: (root, path, staged) => invoke('git_file_versions', { root, path, staged }),
 	commit: (root, message) => invoke('git_commit', { root, message }),
 	log: (root, limit) => invoke('git_log', { root, limit }),
 	clone: (url, dest) => invoke('git_clone', { url, dest }),

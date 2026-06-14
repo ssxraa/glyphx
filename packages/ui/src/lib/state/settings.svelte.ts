@@ -19,6 +19,8 @@ export type LatexGrammar = "legacy" | "lezer";
 export type EditorFont = "jetbrains" | "geist";
 /** Source Control changes layout: flat list vs collapsible folder tree. */
 export type GitView = "tree" | "list";
+/** Diff editor layout: side-by-side (two panes) vs inline (unified). */
+export type DiffView = "side" | "inline";
 /** Which side of the workbench the activity bar + side panel dock on. */
 export type SidebarPosition = "left" | "right";
 /**
@@ -101,6 +103,7 @@ export const AUTO_SAVE_DELAY_MS = 1000;
 export const APPEARANCE_KEY = "glyphx:appearance";
 export const EDITOR_KEY = "glyphx:editor";
 export const GIT_VIEW_KEY = "glyphx:git-view";
+export const DIFF_VIEW_KEY = "glyphx:diff-view";
 export const SIDEBAR_POSITION_KEY = "glyphx:sidebar-position";
 
 const isBrowser = typeof window !== "undefined";
@@ -109,6 +112,7 @@ class SettingsStore {
 	#appearance = new PersistedState<Appearance>(APPEARANCE_KEY, "system");
 	#editor = new PersistedState<EditorSettings>(EDITOR_KEY, EDITOR_DEFAULTS);
 	#gitView = new PersistedState<GitView>(GIT_VIEW_KEY, "tree");
+	#diffView = new PersistedState<DiffView>(DIFF_VIEW_KEY, "side");
 	#sidebarPosition = new PersistedState<SidebarPosition>(SIDEBAR_POSITION_KEY, "left");
 
 	/** OS preference. Light on the server; corrected on the client. */
@@ -258,6 +262,14 @@ class SettingsStore {
 	}
 	set gitView(value: GitView) {
 		this.#gitView.current = value;
+	}
+
+	/** Diff editor layout — side-by-side vs inline (persisted). */
+	get diffView(): DiffView {
+		return this.#diffView.current;
+	}
+	set diffView(value: DiffView) {
+		this.#diffView.current = value;
 	}
 
 	/** Which side the activity bar + side panel dock on (persisted). */

@@ -28,6 +28,12 @@
 		discard: (root: string, paths: string[]) => Promise<void>;
 		/** Unified diff for a path; `staged` = HEAD↔index vs index↔worktree. */
 		diff: (root: string, path: string, staged: boolean) => Promise<string>;
+		/** Both sides of a change as full text, for the side-by-side / inline diff editor. */
+		fileVersions: (
+			root: string,
+			path: string,
+			staged: boolean
+		) => Promise<{ original: string; modified: string; binary: boolean }>;
 		/** Commit the staged index; returns the short hash. */
 		commit: (root: string, message: string) => Promise<string>;
 		log: (root: string, limit?: number) => Promise<GitCommitEntry[]>;
@@ -108,7 +114,9 @@
 		git,
 		root,
 		refreshKey = 0,
-		onstatechange
+		onstatechange,
+		onopendiff,
+		activeDiffPath = null
 	}: {
 		git?: GitProvider;
 		root?: string | null;
@@ -116,6 +124,10 @@
 		refreshKey?: number;
 		/** Reports panel state up so the side-panel header can show/disable actions. */
 		onstatechange?: (s: { isRepo: boolean; loading: boolean }) => void;
+		/** Open a file's diff in the editor pane (host wires this to the diff view). */
+		onopendiff?: (path: string, staged: boolean) => void;
+		/** Path currently shown in the editor's diff view, to highlight its row. */
+		activeDiffPath?: string | null;
 	} = $props();
 
 	let isRepo = $state(false);
@@ -128,36 +140,9 @@
 	let busy = $state(false);
 	let error = $state<string | undefined>(undefined);
 
-	// Inline diff view for a clicked file.
-	let openPath = $state<string | null>(null);
-	let openStaged = $state(false);
-	let diffText = $state('');
-	let diffLoading = $state(false);
-
-	async function showDiff(c: GitChange) {
-		if (openPath === c.path && openStaged === c.staged) {
-			openPath = null; // toggle closed
-			return;
-		}
-		openPath = c.path;
-		openStaged = c.staged;
-		diffText = '';
-		diffLoading = true;
-		try {
-			diffText = (await git?.diff(root!, c.path, c.staged)) ?? '';
-		} catch (e) {
-			diffText = String(e);
-		} finally {
-			diffLoading = false;
-		}
-	}
-
-	const diffLines = $derived(diffText ? diffText.replace(/\n$/, '').split('\n') : []);
-	function lineClass(l: string): string {
-		if (l.startsWith('+') && !l.startsWith('+++')) return 'text-success';
-		if (l.startsWith('-') && !l.startsWith('---')) return 'text-destructive';
-		if (l.startsWith('@@')) return 'text-brand';
-		return 'text-muted-foreground/80';
+	// Clicking a changed file opens its diff in the editor pane (VS Code-style).
+	function showDiff(c: GitChange) {
+		onopendiff?.(c.path, c.staged);
 	}
 
 	// Remotes
@@ -310,7 +295,6 @@
 		loading = true;
 		error = undefined;
 		try {
-			openPath = null; // close any stale inline diff
 			isRepo = await git.isRepo(root);
 			if (!isRepo) {
 				changes = [];
@@ -577,65 +561,53 @@
 </script>
 
 {#snippet fileRow(c: GitChange, action: 'stage' | 'unstage', label: string, depth: number, tree: boolean)}
-	{@const open = openPath === c.path && openStaged === c.staged}
-	<div>
-		<div
-			class="hover:bg-muted/60 group flex items-center gap-1 rounded py-0.5 pr-1 text-xs"
-			style:padding-left={tree ? indent(depth) : '4px'}
+	{@const open = activeDiffPath === c.path}
+	<div
+		class="hover:bg-muted/60 group flex items-center gap-1 rounded py-0.5 pr-1 text-xs {open
+			? 'bg-accent/60'
+			: ''}"
+		style:padding-left={tree ? indent(depth) : '4px'}
+	>
+		<button
+			class="text-foreground/90 hover:text-foreground flex min-w-0 flex-1 items-center gap-1 text-left {open
+				? 'font-medium'
+				: ''}"
+			title="Open diff — {c.path}"
+			onclick={() => showDiff(c)}
 		>
-			<button
-				class="text-foreground/90 hover:text-foreground flex min-w-0 flex-1 items-center gap-1 text-left {open
-					? 'font-medium'
-					: ''}"
-				title="Show diff — {c.path}"
-				onclick={() => showDiff(c)}
-			>
-				{#if tree}
-					<span class="w-[13px] shrink-0"></span>
-					<IconFileText size={14} class="text-muted-foreground shrink-0" />
-				{/if}
-				<span class="truncate">{label}</span>
-			</button>
-			{#if action === 'stage'}
-				<Button
-					variant="ghost"
-					size="icon-xs"
-					class="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
-					title="Discard changes"
-					aria-label="Discard changes"
-					disabled={busy}
-					onclick={() => discard([c.path])}
-				>
-					<IconArrowBackUp size={13} />
-				</Button>
+			{#if tree}
+				<span class="w-[13px] shrink-0"></span>
+				<IconFileText size={14} class="text-muted-foreground shrink-0" />
 			{/if}
+			<span class="truncate">{label}</span>
+		</button>
+		{#if action === 'stage'}
 			<Button
 				variant="ghost"
 				size="icon-xs"
-				class="opacity-0 group-hover:opacity-100"
-				title={action === 'stage' ? 'Stage' : 'Unstage'}
-				aria-label={action === 'stage' ? 'Stage' : 'Unstage'}
+				class="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
+				title="Discard changes"
+				aria-label="Discard changes"
 				disabled={busy}
-				onclick={() => (action === 'stage' ? stage([c.path]) : unstage([c.path]))}
+				onclick={() => discard([c.path])}
 			>
-				{#if action === 'stage'}<IconPlus size={13} />{:else}<IconMinus size={13} />{/if}
+				<IconArrowBackUp size={13} />
 			</Button>
-			<span class="shrink-0 font-mono text-[10px] {STATUS_CLASS[c.status] ?? ''}">
-				{STATUS_LABEL[c.status] ?? '?'}
-			</span>
-		</div>
-		{#if open}
-			<div class="border-border/60 mx-1 my-1 overflow-auto rounded border">
-				{#if diffLoading}
-					<p class="text-muted-foreground p-2 text-[11px]">Loading diff…</p>
-				{:else if !diffLines.length}
-					<p class="text-muted-foreground p-2 text-[11px]">No textual diff (binary or empty).</p>
-				{:else}
-					<pre class="max-h-64 overflow-auto p-2 font-mono text-[10.5px] leading-snug"><!--
-					-->{#each diffLines as l, i (i)}<span class="{lineClass(l)} block whitespace-pre">{l || ' '}</span>{/each}</pre>
-				{/if}
-			</div>
 		{/if}
+		<Button
+			variant="ghost"
+			size="icon-xs"
+			class="opacity-0 group-hover:opacity-100"
+			title={action === 'stage' ? 'Stage' : 'Unstage'}
+			aria-label={action === 'stage' ? 'Stage' : 'Unstage'}
+			disabled={busy}
+			onclick={() => (action === 'stage' ? stage([c.path]) : unstage([c.path]))}
+		>
+			{#if action === 'stage'}<IconPlus size={13} />{:else}<IconMinus size={13} />{/if}
+		</Button>
+		<span class="shrink-0 font-mono text-[10px] {STATUS_CLASS[c.status] ?? ''}">
+			{STATUS_LABEL[c.status] ?? '?'}
+		</span>
 	</div>
 {/snippet}
 

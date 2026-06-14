@@ -94,6 +94,7 @@ pub fn run() {
             git::git_unstage,
             git::git_discard,
             git::git_diff,
+            git::git_file_versions,
             git::git_commit,
             git::git_log,
             git::git_clone,

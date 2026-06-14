@@ -82,13 +82,16 @@ Nothing is uploaded. Nothing leaves this device.
     IconDownload,
     IconEye,
     IconFolderShare,
+    IconBaselineDensityMedium,
     IconLayoutColumns,
     IconLoader2,
     IconMinus,
     IconPencil,
     IconPlayerPlayFilled,
     IconPlus,
+    IconRefresh,
     IconSearch,
+    IconX,
   } from "@tabler/icons-svelte";
   import { onDestroy, onMount } from "svelte";
 
@@ -97,6 +100,7 @@ Nothing is uploaded. Nothing leaves this device.
   import AssetViewer from "./asset-viewer.svelte";
   import { applyCase } from "./case-preserve";
   import CodeEditor from "./code-editor.svelte";
+  import DiffView from "./diff-view.svelte";
   import {
     classifyFile,
     editorLanguage,
@@ -1037,6 +1041,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     if (!project) return;
     try {
       const list = await project.readFiles(root);
+      diffTarget = null; // close any diff from the previous project
       projectRoot = root;
       // `.glyx` manifest is project metadata — keep it on disk, hide from the tree.
       const visible = list.filter(
@@ -1204,6 +1209,38 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   let activeView = $state<ActivityView>("files");
   let panelCollapsed = $state(false);
   let viewMode = $state<ViewMode>("split");
+
+  // --- Diff view (Source Control → open a change in the editor pane) ---------
+  // VS Code-style: clicking a changed file opens a read-only diff (side-by-side
+  // or inline, per settings.diffView) over the editor pane. `null` = editing.
+  type DiffTarget = {
+    path: string;
+    staged: boolean;
+    original: string;
+    modified: string;
+    binary: boolean;
+  };
+  let diffTarget = $state<DiffTarget | null>(null);
+
+  async function openDiff(path: string, staged: boolean): Promise<void> {
+    if (!git || !projectRoot) return;
+    try {
+      const v = await git.fileVersions(projectRoot, path, staged);
+      diffTarget = { path, staged, ...v };
+      if (viewMode === "preview") viewMode = "split"; // make the editor pane visible
+    } catch (e) {
+      toast.error(`Could not open diff — ${e}`);
+    }
+  }
+  function closeDiff(): void {
+    diffTarget = null;
+  }
+  async function refreshDiff(): Promise<void> {
+    if (diffTarget) await openDiff(diffTarget.path, diffTarget.staged);
+  }
+  const diffLanguage = $derived(
+    diffTarget ? editorLanguage(classifyFile(diffTarget.path)) : "plain",
+  );
 
   // Top bar: quick-open palette (the VS Code command centre). `projectName`
   // is a prop now (the open project's name).
@@ -2024,6 +2061,8 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         {engine}
         {git}
         {projectRoot}
+        onopendiff={openDiff}
+        activeDiffPath={diffTarget?.path ?? null}
         widthPx={sidebarWidth}
         onopen={openFile}
         onnew={newFile}
@@ -2088,7 +2127,83 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
               : ''}"
             style={viewMode === "split" ? `width:${splitPct}%` : "width:100%"}
           >
-            {#if activeEditable}
+            {#if diffTarget}
+              <!-- Diff view (VS Code-style): file name + side-by-side / inline
+                   toggle + refresh + close. Read-only comparison of the change. -->
+              <div
+                class="text-muted-foreground border-border flex h-9 shrink-0 items-center gap-2 border-b px-2 text-xs"
+              >
+                <span class="truncate pl-1" title={diffTarget.path}>
+                  {baseName(diffTarget.path)}
+                  <span class="text-muted-foreground/60">
+                    — {diffTarget.staged ? "Staged changes" : "Working tree"}
+                  </span>
+                </span>
+                <div class="ml-auto flex shrink-0 items-center gap-1 pl-1">
+                  <button
+                    class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors {settings.diffView ===
+                    'side'
+                      ? 'bg-muted text-foreground'
+                      : ''}"
+                    title="Side by side"
+                    aria-label="Side by side"
+                    aria-pressed={settings.diffView === "side"}
+                    onclick={() => (settings.diffView = "side")}
+                  >
+                    <IconLayoutColumns size={15} />
+                  </button>
+                  <button
+                    class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors {settings.diffView ===
+                    'inline'
+                      ? 'bg-muted text-foreground'
+                      : ''}"
+                    title="Inline"
+                    aria-label="Inline"
+                    aria-pressed={settings.diffView === "inline"}
+                    onclick={() => (settings.diffView = "inline")}
+                  >
+                    <IconBaselineDensityMedium size={15} />
+                  </button>
+                  <div class="bg-border/70 mx-0.5 h-5 w-px"></div>
+                  <button
+                    class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+                    title="Refresh diff"
+                    aria-label="Refresh diff"
+                    onclick={refreshDiff}
+                  >
+                    <IconRefresh size={15} />
+                  </button>
+                  <button
+                    class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+                    title="Close diff"
+                    aria-label="Close diff"
+                    onclick={closeDiff}
+                  >
+                    <IconX size={15} />
+                  </button>
+                </div>
+              </div>
+              <div class="min-h-0 flex-1">
+                {#if diffTarget.binary}
+                  <div
+                    class="text-muted-foreground flex h-full items-center justify-center p-4 text-center text-xs"
+                  >
+                    Binary file — no text diff to show.
+                  </div>
+                {:else}
+                  <DiffView
+                    original={diffTarget.original}
+                    modified={diffTarget.modified}
+                    mode={settings.diffView}
+                    theme={settings.resolved}
+                    grammar={settings.grammar}
+                    language={diffLanguage}
+                    fontSize={settings.fontSize}
+                    fontFamily={settings.fontStack}
+                  />
+                {/if}
+              </div>
+            {:else if activeEditable}
             <div
               class="text-muted-foreground border-border flex h-9 shrink-0 items-center gap-2 border-b px-2 text-xs"
             >

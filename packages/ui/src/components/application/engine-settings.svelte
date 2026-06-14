@@ -302,24 +302,30 @@
 		<div class="flex flex-col gap-1">
 			{#each shown as v (v.version)}
 				{@const nightly = v.version === 'nightly'}
-				<div class="border-border flex items-center gap-2 rounded-md border px-2 py-1">
-					<span class="text-foreground text-[13px] {nightly ? 'capitalize' : 'tabular-nums'}">
+				<div class="border-border flex items-center gap-2 rounded-md border px-2 py-1.5">
+					<span
+						class="text-foreground shrink-0 text-[13px] {nightly ? 'capitalize' : 'tabular-nums'}"
+						title={nightly
+							? 'Newer xetex-layout — fixes the fontawesome5 / icon-font crash'
+							: undefined}
+					>
 						{v.version}
 					</span>
-					{#if nightly}
-						<span class="text-brand text-[10px] font-medium" title="Newer xetex-layout — fixes the fontawesome5 / icon-font crash">
-							fixes icon fonts
+					{#if v.active}
+						<span class="text-success shrink-0 text-[10px] font-semibold tracking-wide uppercase">
+							Active
+						</span>
+					{:else if v.installed}
+						<span
+							class="text-muted-foreground/60 shrink-0 text-[10px] font-medium tracking-wide uppercase"
+						>
+							Installed
 						</span>
 					{/if}
-					{#if v.active}
-						<span class="text-success text-[10px] font-semibold tracking-wide uppercase">Active</span>
-					{:else if v.installed}
-						<span class="text-muted-foreground/70 text-[10px] tracking-wide uppercase">Installed</span>
-					{/if}
-					<div class="ml-auto flex items-center gap-1">
+					<div class="ml-auto flex shrink-0 items-center gap-1">
 						{#if !v.installed}
 							<Button
-								variant={nightly ? 'secondary' : 'outline'}
+								variant="outline"
 								size="xs"
 								onclick={() => download(v.version)}
 								disabled={busy === v.version}

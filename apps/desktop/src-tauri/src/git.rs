@@ -479,37 +479,7 @@ pub async fn git_commit(root: String, message: String) -> Result<String, String>
 #[tauri::command]
 pub async fn git_diff(root: String, path: String, staged: bool) -> Result<String, String> {
     let repo = open(&root)?;
-    let work_dir = repo
-        .work_dir()
-        .ok_or("No working tree in a bare repository.")?
-        .to_owned();
-
-    let head_blob = repo
-        .head_tree()
-        .ok()
-        .and_then(|t| {
-            t.lookup_entry_by_path(std::path::Path::new(&path))
-                .ok()
-                .flatten()
-        })
-        .and_then(|e| e.object().ok())
-        .map(|o| o.data.clone());
-
-    let index = open_index_mut(&repo);
-    let index_blob = index
-        .entry_by_path(path.as_str().into())
-        .and_then(|e| repo.find_object(e.id).ok())
-        .map(|o| o.data.clone());
-
-    let (old, new): (Vec<u8>, Vec<u8>) = if staged {
-        (
-            head_blob.unwrap_or_default(),
-            index_blob.unwrap_or_default(),
-        )
-    } else {
-        let worktree = std::fs::read(work_dir.join(&path)).unwrap_or_default();
-        (index_blob.or(head_blob).unwrap_or_default(), worktree)
-    };
+    let (old, new) = file_sides(&repo, &path, staged)?;
 
     let old_s = String::from_utf8_lossy(&old);
     let new_s = String::from_utf8_lossy(&new);
@@ -523,6 +493,62 @@ pub async fn git_diff(root: String, path: String, staged: bool) -> Result<String
         .context_radius(3)
         .header(&format!("a/{path}"), &format!("b/{path}"))
         .to_string())
+}
+
+/// The two sides of a change for `path`: `(old, new)` raw bytes. `staged` selects
+/// HEAD↔index; otherwise (index|HEAD)↔worktree. Shared by the unified diff and
+/// the side-by-side / inline diff editor.
+fn file_sides(repo: &gix::Repository, path: &str, staged: bool) -> Result<(Vec<u8>, Vec<u8>), String> {
+    let work_dir = repo
+        .work_dir()
+        .ok_or("No working tree in a bare repository.")?
+        .to_owned();
+
+    let head_blob = repo
+        .head_tree()
+        .ok()
+        .and_then(|t| t.lookup_entry_by_path(std::path::Path::new(path)).ok().flatten())
+        .and_then(|e| e.object().ok())
+        .map(|o| o.data.clone());
+
+    let index = open_index_mut(repo);
+    let index_blob = index
+        .entry_by_path(path.into())
+        .and_then(|e| repo.find_object(e.id).ok())
+        .map(|o| o.data.clone());
+
+    Ok(if staged {
+        (head_blob.unwrap_or_default(), index_blob.unwrap_or_default())
+    } else {
+        let worktree = std::fs::read(work_dir.join(path)).unwrap_or_default();
+        (index_blob.or(head_blob).unwrap_or_default(), worktree)
+    })
+}
+
+/// The full text of both sides of a change, for the diff editor (side-by-side /
+/// inline). `binary` is set when either side contains a NUL byte, so the UI can
+/// show a "binary file" placeholder instead of mojibake.
+#[derive(Serialize)]
+pub struct FileVersions {
+    pub original: String,
+    pub modified: String,
+    pub binary: bool,
+}
+
+#[tauri::command]
+pub async fn git_file_versions(
+    root: String,
+    path: String,
+    staged: bool,
+) -> Result<FileVersions, String> {
+    let repo = open(&root)?;
+    let (old, new) = file_sides(&repo, &path, staged)?;
+    let binary = old.contains(&0) || new.contains(&0);
+    Ok(FileVersions {
+        original: String::from_utf8_lossy(&old).into_owned(),
+        modified: String::from_utf8_lossy(&new).into_owned(),
+        binary,
+    })
 }
 
 #[derive(Serialize)]
