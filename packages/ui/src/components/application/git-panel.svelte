@@ -16,6 +16,8 @@
 
 	/** Host-injected Git backend (desktop = Tauri / gitoxide). */
 	export type GitProvider = {
+		/** Whether a usable system `git` is installed — gates the remote half (push/pull/sync). */
+		available?: () => Promise<boolean>;
 		isRepo: (root: string) => Promise<boolean>;
 		init: (root: string) => Promise<void>;
 		head: (root: string) => Promise<GitHeadInfo>;
@@ -150,6 +152,9 @@
 	let token = $state('');
 	let showToken = $state(false);
 	let remoteMsg = $state<string | undefined>(undefined);
+	// The remote half (push/pull/sync/remote edits) shells out to the system git.
+	// Detect it up front so those actions explain themselves instead of failing.
+	let gitMissing = $state(false);
 	// Which remote fetch/pull/push act on; falls back to origin / first.
 	let selectedRemote = $state('');
 	const activeRemote = $derived(
@@ -331,6 +336,20 @@
 		onstatechange?.({ isRepo, loading });
 	});
 
+	// Detect the system git once per provider. Hosts that don't expose `available`
+	// (e.g. a web build) are never treated as "missing".
+	$effect(() => {
+		void git;
+		if (!git?.available) {
+			gitMissing = false;
+			return;
+		}
+		git
+			.available()
+			.then((ok) => (gitMissing = !ok))
+			.catch(() => (gitMissing = false));
+	});
+
 	async function run(fn: () => Promise<unknown>) {
 		if (!git || !root || busy) return;
 		busy = true;
@@ -357,7 +376,7 @@
 		if (/install git/.test(e))
 			return {
 				title: "Git isn’t installed",
-				message: "This action uses the system Git. Install Git, make sure it’s on your PATH, then try again.",
+				message: "Syncing with a remote needs Git installed on your computer. Install it from git-scm.com, then reopen GlyphX and try again.",
 				details
 			};
 		if (
@@ -410,6 +429,15 @@
 	/** Run a remote operation; route any failure to the error dialog. */
 	async function runRemote(op: string, fn: () => Promise<unknown>) {
 		if (!git || !root || busy) return;
+		// Up-front, plain-language gate: skip the doomed attempt when git is absent.
+		if (gitMissing) {
+			gitError = {
+				title: 'Git isn’t installed',
+				message:
+					'Syncing with a remote needs Git installed on your computer. Install it from git-scm.com, then reopen GlyphX and try again.'
+			};
+			return;
+		}
 		busy = true;
 		remoteMsg = undefined;
 		try {

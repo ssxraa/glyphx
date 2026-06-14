@@ -82,8 +82,14 @@ jobs:
             os: macos-latest
             rust_target: x86_64-apple-darwin
             tauri_args: --target x86_64-apple-darwin
+          # Built on the OLDEST supported runner on purpose: the glibc + system
+          # library versions present at build time become the FLOOR for what the
+          # AppImage / .deb can run on. ubuntu-22.04 (glibc 2.35) still ships
+          # webkit2gtk-4.1, so the bundle runs on Ubuntu 22.04+/Debian 12+ as
+          # well as newer distros. Building on 24.04 (glibc 2.39) would silently
+          # drop every distro older than itself.
           - name: linux-x64
-            os: ubuntu-24.04
+            os: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
             tauri_args: ""
           - name: windows-x64
@@ -128,7 +134,7 @@ jobs:
             turbo-${{ matrix.platform.os }}-
 
       - name: Install Linux system dependencies
-        if: matrix.platform.os == 'ubuntu-24.04'
+        if: startsWith(matrix.platform.os, 'ubuntu')
         run: bash scripts/release/install-linux-deps.sh
 
       - name: Install workspace dependencies

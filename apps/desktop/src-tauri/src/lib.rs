@@ -92,6 +92,7 @@ pub fn run() {
             project::import_zip,
             project::export_zip,
             shell_integration::register_shell_integration,
+            git::git_available,
             git::git_is_repo,
             git::git_init,
             git::git_head,

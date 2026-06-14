@@ -8,6 +8,7 @@ import type { GitProvider } from '@glyphx/ui/application';
  * push / pull / remote edits shell out to the system `git`.
  */
 export const gitProvider: GitProvider = {
+	available: () => invoke('git_available'),
 	isRepo: (root) => invoke('git_is_repo', { root }),
 	init: (root) => invoke('git_init', { root }),
 	head: (root) => invoke('git_head', { root }),

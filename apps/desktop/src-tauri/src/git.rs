@@ -30,7 +30,7 @@ where
         .args(args)
         .output()
         .map_err(|e| {
-            format!("Could not run git — install Git and ensure it's on your PATH for this action. ({e})")
+            format!("Could not run git — Git needs to be installed to sync with a remote. ({e})")
         })?;
     if out.status.success() {
         Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
@@ -42,6 +42,19 @@ where
             err.trim().to_string()
         })
     }
+}
+
+/// Whether a usable system `git` is on PATH. The remote half of the client
+/// (push / pull / sync / remote management / ahead-behind) shells out to `git`,
+/// so the UI calls this up front to show a friendly "Git isn't installed" state
+/// instead of letting each action fail with a raw spawn error.
+#[tauri::command]
+pub fn git_available() -> bool {
+    Command::new("git")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 /// Open the repo's index for mutation, or an empty in-memory one (pointing at the
@@ -801,7 +814,7 @@ pub async fn git_sync(
         .args(&pull_args)
         .output()
         .map_err(|e| {
-            format!("Could not run git — install Git and ensure it's on your PATH for this action. ({e})")
+            format!("Could not run git — Git needs to be installed to sync with a remote. ({e})")
         })?;
     if !pull.status.success() {
         // Conflict text goes to stdout; other failures to stderr — check both.
