@@ -130,9 +130,17 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "./apps/desktop/src-tauri -> target"
+          # Bump `prefix-key` to invalidate every cached target/ at once. The old
+          # caches were poisoned: a build that failed partway through compiling
+          # deps was saved (see cache-on-failure below), so later runs restored a
+          # target/ whose fingerprints said "fresh" but was missing tauri's rlib
+          # → "can't find crate for tauri".
+          prefix-key: v2-rust
           key: ci-${{ matrix.platform.rust_target }}
           shared-key: ci-tauri-${{ matrix.platform.name }}
-          cache-on-failure: true
+          # Don't persist a half-built target/ from a failed run — that's what
+          # poisoned the cache. A clean failure just means the next run rebuilds.
+          cache-on-failure: false
 
       - name: Install Linux system dependencies
         if: matrix.platform.os == 'ubuntu-24.04'

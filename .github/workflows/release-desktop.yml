@@ -121,9 +121,15 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "./apps/desktop/src-tauri -> target"
+          # Bump `prefix-key` to invalidate every cached target/ at once — the old
+          # caches were poisoned by a half-built target/ saved from a failed run
+          # (see cache-on-failure below), which restored without tauri's rlib
+          # → "can't find crate for tauri".
+          prefix-key: v2-rust
           key: ${{ matrix.platform.rust_target }}
           shared-key: tauri-${{ matrix.platform.name }}
-          cache-on-failure: true
+          # Don't persist a half-built target/ from a failed run.
+          cache-on-failure: false
 
       - name: Cache turbo build outputs
         uses: actions/cache@v4
