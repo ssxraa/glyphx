@@ -194,6 +194,57 @@ pub fn create_local_project(app: tauri::AppHandle, name: String) -> Result<Strin
     Ok(root.to_string_lossy().into_owned())
 }
 
+/// A project folder living in the app's own data directory, with its display
+/// name and last-modified time (ms). Drives the home page's local-projects list.
+#[derive(Serialize)]
+pub struct LocalProject {
+    pub root: String,
+    pub name: String,
+    pub modified: u64,
+}
+
+/// List the project folders GlyphX manages in its own data directory. Returns an
+/// empty list when that directory doesn't exist yet (fresh install). Imported /
+/// externally-opened folders are tracked by the frontend, not here.
+#[tauri::command]
+pub fn list_local_projects(app: tauri::AppHandle) -> Result<Vec<LocalProject>, String> {
+    use tauri::Manager;
+    let base = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("projects");
+    let mut out = Vec::new();
+    let entries = match fs::read_dir(&base) {
+        Ok(e) => e,
+        Err(_) => return Ok(out),
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("project")
+            .to_string();
+        let modified = entry
+            .metadata()
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        out.push(LocalProject {
+            root: path.to_string_lossy().into_owned(),
+            name,
+            modified,
+        });
+    }
+    Ok(out)
+}
+
 /// Choose a non-colliding folder name inside `parent` based on `stem`.
 fn unique_dir(parent: &Path, stem: &str) -> PathBuf {
     let mut candidate = parent.join(stem);

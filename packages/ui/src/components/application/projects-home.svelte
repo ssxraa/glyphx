@@ -6,6 +6,14 @@
 <script lang="ts">
 	import { Button } from '@glyphx/ui/button';
 	import {
+	  Dialog,
+	  DialogContent,
+	  DialogDescription,
+	  DialogFooter,
+	  DialogHeader,
+	  DialogTitle
+	} from '@glyphx/ui/dialog';
+	import {
 	  DropdownMenu,
 	  DropdownMenuContent,
 	  DropdownMenuItem,
@@ -83,6 +91,8 @@
 	let renaming = $state<string | null>(null);
 	let renameValue = $state('');
 	let aboutOpen = $state(false);
+	// The project pending a delete confirmation (null = dialog closed).
+	let pendingDelete = $state<Project | null>(null);
 
 	// Scroll-aware toolbar: borderless + transparent at the top, a translucent
 	// blur + hairline settle in once content scrolls beneath it.
@@ -149,6 +159,12 @@
 		const name = renameValue.trim();
 		if (name) onrename?.(id, name);
 		renaming = null;
+	}
+
+	function confirmDelete() {
+		const p = pendingDelete;
+		pendingDelete = null;
+		if (p) ondelete?.(p.id);
 	}
 
 	// Deterministic-but-varied faux text lines so each card's "page" looks unique.
@@ -452,7 +468,7 @@
 											</DropdownMenuItem>
 										{/if}
 										<DropdownMenuSeparator />
-										<DropdownMenuItem variant="destructive" onclick={() => ondelete?.(p.id)}>
+										<DropdownMenuItem variant="destructive" onclick={() => (pendingDelete = p)}>
 											<IconTrash /> Delete
 										</DropdownMenuItem>
 									</DropdownMenuContent>
@@ -468,3 +484,35 @@
 
 <!-- About GlyphX — brand, version, and links out (GitHub / website). -->
 <AboutDialog bind:open={aboutOpen} {platform} />
+
+<!-- Delete confirmation. Disk-backed projects show their folder path, because
+     confirming removes the folder from disk (not just the list). -->
+<Dialog open={pendingDelete !== null} onOpenChange={(o) => (o ? null : (pendingDelete = null))}>
+	<DialogContent class="sm:max-w-md">
+		<DialogHeader>
+			<DialogTitle>Delete “{pendingDelete?.name}”?</DialogTitle>
+			<DialogDescription>
+				{#if pendingDelete?.root}
+					This permanently deletes the project folder and all its files from your disk.
+					This cannot be undone.
+				{:else}
+					This removes the project from GlyphX. This cannot be undone.
+				{/if}
+			</DialogDescription>
+		</DialogHeader>
+		{#if pendingDelete?.root}
+			<p
+				class="bg-muted/50 text-muted-foreground truncate rounded-lg px-3 py-2 font-mono text-xs"
+				title={pendingDelete.root}
+			>
+				{pendingDelete.root}
+			</p>
+		{/if}
+		<DialogFooter>
+			<Button variant="ghost" size="sm" onclick={() => (pendingDelete = null)}>Cancel</Button>
+			<Button variant="destructive" size="sm" onclick={confirmDelete}>
+				<IconTrash size={15} /> Delete
+			</Button>
+		</DialogFooter>
+	</DialogContent>
+</Dialog>

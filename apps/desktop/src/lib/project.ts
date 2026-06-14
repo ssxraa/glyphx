@@ -12,6 +12,8 @@ import type { ProjectFile, ProjectHost } from '@glyphx/ui/application';
  */
 export const projectHost: ProjectHost = {
 	createLocalProject: (name) => invoke<string>('create_local_project', { name }),
+	listLocalProjects: () =>
+		invoke<{ root: string; name: string; modified: number }[]>('list_local_projects'),
 
 	pickFolder: async (title) => {
 		const sel = await open({ directory: true, multiple: false, title });

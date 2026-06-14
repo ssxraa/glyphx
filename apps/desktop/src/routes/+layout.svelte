@@ -4,6 +4,8 @@
 	import { launch } from '$lib/launch';
 	import { projectHost } from '$lib/project';
 	import { initTauriTheme } from '$lib/tauri-theme';
+	import { updater } from '$lib/updater.svelte';
+	import UpdaterCard from '$lib/updater-card.svelte';
 	import { NavProgress } from '@glyphx/ui/nav-progress';
 	import { settings } from '@glyphx/ui/settings';
 	import { onMount, tick } from 'svelte';
@@ -19,6 +21,10 @@
 		boot.classList.add('boot-leaving');
 		setTimeout(() => boot.remove(), 300);
 	});
+
+	// Kick off a silent background update check on boot. Surfaces the corner
+	// card only if a newer release exists; no-op under `tauri dev` / web.
+	onMount(() => updater.init());
 
 	// Page transitions via the View Transitions API. The projects home and the
 	// editor share a per-project `view-transition-name`, so the clicked card
@@ -94,3 +100,5 @@
 <NavProgress color="var(--brand)" />
 
 {@render children()}
+
+<UpdaterCard />

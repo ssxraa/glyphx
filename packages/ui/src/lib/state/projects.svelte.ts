@@ -175,6 +175,27 @@ class ProjectsStore {
 		return project;
 	}
 
+	/**
+	 * Ensure a disk-backed project is listed (used when scanning the app's own
+	 * projects directory). Unlike {@link remember}, it does NOT bump `updatedAt`
+	 * for an entry that's already known — so a scan never disturbs the last-access
+	 * order. A newly-discovered folder adopts its on-disk modified time, so it
+	 * sorts by real recency rather than jumping to the top.
+	 */
+	ensure(root: string, name: string, modified?: number): void {
+		if (this.#store.current.some((p) => p.root === root)) return;
+		const ts = modified && modified > 0 ? modified : Date.now();
+		const project: Project = {
+			id: uid(),
+			name,
+			root,
+			files: [],
+			createdAt: ts,
+			updatedAt: ts
+		};
+		this.#store.current = [project, ...this.#store.current];
+	}
+
 	/** Bump a project's last-edited time (e.g. on open). */
 	touch(id: string): void {
 		this.#store.current = this.#store.current.map((p) =>

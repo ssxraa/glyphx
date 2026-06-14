@@ -19,6 +19,11 @@ export type ProjectHost = {
 	 * Absent on the web (in-memory projects only).
 	 */
 	createLocalProject?: (name: string) => Promise<string>;
+	/**
+	 * List the project folders GlyphX manages in its own data directory, so the
+	 * home page reflects what's actually on disk (not just remembered references).
+	 */
+	listLocalProjects?: () => Promise<{ root: string; name: string; modified: number }[]>;
 	/** Native folder picker → chosen absolute path, or null if cancelled. */
 	pickFolder: (title?: string) => Promise<string | null>;
 	/** Native file picker for import (.zip / .glyx / .tex) → path, or null. */

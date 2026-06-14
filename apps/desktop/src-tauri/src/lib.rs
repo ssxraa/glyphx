@@ -45,6 +45,10 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        // Auto-update (desktop). The frontend drives check/download/install via
+        // the JS plugin APIs; `process` provides relaunch after install.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(LaunchPath::default())
         .setup(|app| {
             // Capture the path this (first) instance was launched with.
@@ -77,6 +81,7 @@ pub fn run() {
             engine::tectonic_cache_info,
             engine::clear_tectonic_cache,
             project::create_local_project,
+            project::list_local_projects,
             project::read_project_files,
             project::read_file_text,
             project::write_file_text,

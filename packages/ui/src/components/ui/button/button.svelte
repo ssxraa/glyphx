@@ -31,7 +31,7 @@
 				secondary:
 					"border-secondary bg-secondary text-secondary-foreground border-border/30 shadow-craft-sm hover:bg-muted/50",
 				outline:
-					"border-accent bg-accent shadow-craft-sm hover:bg-accent/10 hover:text-accent-foreground dark:bg-input/30 dark:hover:bg-input/50",
+					"border-border bg-background shadow-craft-sm hover:border-border hover:bg-muted hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
 				ghost:
 					"border-transparent hover:bg-muted/40 hover:text-accent-foreground dark:hover:bg-accent/50",
 				link: "text-primary underline-offset-4 hover:underline hover:scale-100",

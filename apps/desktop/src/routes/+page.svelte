@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { message } from '@tauri-apps/plugin-dialog';
@@ -6,6 +7,20 @@
 	import { projects } from '@glyphx/ui/projects';
 	import { projectHost } from '$lib/project';
 	import { gitProvider } from '$lib/git';
+
+	// Reflect what's actually on disk: every project folder GlyphX manages in its
+	// own data directory shows on the home page, even if its remembered reference
+	// was lost (cleared storage, fresh machine). Imported / opened folders keep
+	// living in the store. The scan never reorders existing entries.
+	onMount(async () => {
+		if (!projectHost.listLocalProjects) return;
+		try {
+			const local = await projectHost.listLocalProjects();
+			for (const lp of local) projects.ensure(lp.root, lp.name, lp.modified);
+		} catch {
+			/* directory unavailable — fall back to the stored list */
+		}
+	});
 
 	/**
 	 * New project — created on disk in the app's own data directory by default
@@ -83,7 +98,23 @@
 	}}
 	onrename={(id, name) => projects.rename(id, name)}
 	onduplicate={(id) => projects.duplicate(id)}
-	ondelete={(id) => projects.remove(id)}
+	ondelete={async (id) => {
+		const p = projects.list.find((x) => x.id === id);
+		// Disk-backed project → remove the folder from the file system too, so
+		// deleting from the home actually frees the project on disk.
+		if (p?.root) {
+			try {
+				await projectHost.remove(p.root);
+			} catch (e) {
+				await message(`Could not delete the project folder.\n${e}`, {
+					title: 'Delete failed',
+					kind: 'error'
+				});
+				return; // keep the entry so the user can retry
+			}
+		}
+		projects.remove(id);
+	}}
 	onreveal={(id) => {
 		const p = projects.list.find((x) => x.id === id);
 		if (p?.root) void projectHost.revealInOS?.(p.root);
