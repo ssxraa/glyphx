@@ -498,7 +498,11 @@ pub async fn git_diff(root: String, path: String, staged: bool) -> Result<String
 /// The two sides of a change for `path`: `(old, new)` raw bytes. `staged` selects
 /// HEAD↔index; otherwise (index|HEAD)↔worktree. Shared by the unified diff and
 /// the side-by-side / inline diff editor.
-fn file_sides(repo: &gix::Repository, path: &str, staged: bool) -> Result<(Vec<u8>, Vec<u8>), String> {
+fn file_sides(
+    repo: &gix::Repository,
+    path: &str,
+    staged: bool,
+) -> Result<(Vec<u8>, Vec<u8>), String> {
     let work_dir = repo
         .work_dir()
         .ok_or("No working tree in a bare repository.")?
@@ -507,7 +511,11 @@ fn file_sides(repo: &gix::Repository, path: &str, staged: bool) -> Result<(Vec<u
     let head_blob = repo
         .head_tree()
         .ok()
-        .and_then(|t| t.lookup_entry_by_path(std::path::Path::new(path)).ok().flatten())
+        .and_then(|t| {
+            t.lookup_entry_by_path(std::path::Path::new(path))
+                .ok()
+                .flatten()
+        })
         .and_then(|e| e.object().ok())
         .map(|o| o.data.clone());
 
@@ -518,7 +526,10 @@ fn file_sides(repo: &gix::Repository, path: &str, staged: bool) -> Result<(Vec<u
         .map(|o| o.data.clone());
 
     Ok(if staged {
-        (head_blob.unwrap_or_default(), index_blob.unwrap_or_default())
+        (
+            head_blob.unwrap_or_default(),
+            index_blob.unwrap_or_default(),
+        )
     } else {
         let worktree = std::fs::read(work_dir.join(path)).unwrap_or_default();
         (index_blob.or(head_blob).unwrap_or_default(), worktree)
@@ -707,14 +718,11 @@ pub async fn git_pull(root: String, url: Option<String>) -> Result<String, Strin
 /// ahead/behind reflects reality — otherwise pushed commits still read as ahead.
 fn sync_tracking_ref(root: &str, remote: &Option<String>, branch: &Option<String>) {
     let Some(remote) = remote else { return };
-    let branch = branch
-        .clone()
-        .filter(|b| !b.is_empty())
-        .or_else(|| {
-            run_git(root, ["rev-parse", "--abbrev-ref", "HEAD"])
-                .ok()
-                .filter(|b| !b.is_empty() && b != "HEAD")
-        });
+    let branch = branch.clone().filter(|b| !b.is_empty()).or_else(|| {
+        run_git(root, ["rev-parse", "--abbrev-ref", "HEAD"])
+            .ok()
+            .filter(|b| !b.is_empty() && b != "HEAD")
+    });
     if let Some(b) = branch {
         let refname = format!("refs/remotes/{remote}/{b}");
         let _ = run_git(root, ["update-ref", refname.as_str(), "HEAD"]);
@@ -734,7 +742,10 @@ pub async fn git_push(
     let mut args: Vec<String> = vec!["push".into()];
     if let Some(u) = &url {
         args.push(u.clone());
-        args.push(format!("HEAD:{}", branch.clone().unwrap_or_else(|| "HEAD".into())));
+        args.push(format!(
+            "HEAD:{}",
+            branch.clone().unwrap_or_else(|| "HEAD".into())
+        ));
     }
     let out = run_git(&root, args)?;
     sync_tracking_ref(&root, &remote, &branch);
@@ -803,7 +814,10 @@ pub async fn git_sync(
     let mut push_args: Vec<String> = vec!["push".into()];
     if let Some(u) = &url {
         push_args.push(u.clone());
-        push_args.push(format!("HEAD:{}", branch.clone().unwrap_or_else(|| "HEAD".into())));
+        push_args.push(format!(
+            "HEAD:{}",
+            branch.clone().unwrap_or_else(|| "HEAD".into())
+        ));
     }
     run_git(&root, push_args)?;
     sync_tracking_ref(&root, &remote, &branch);

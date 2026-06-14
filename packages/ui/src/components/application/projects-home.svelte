@@ -16,18 +16,21 @@
 	import { projectViewTransitionName } from '@glyphx/ui/projects';
 	import { ThemeToggle } from '@glyphx/ui/theme-toggle';
 	import {
+	  IconChevronDown,
 	  IconCloudDownload,
 	  IconCopy,
 	  IconDotsVertical,
 	  IconFileImport,
 	  IconFolderOpen,
 	  IconFolderShare,
+	  IconInfoCircle,
 	  IconPencil,
 	  IconPlus,
 	  IconSearch,
 	  IconSettings,
 	  IconTrash
 	} from '@tabler/icons-svelte';
+	import AboutDialog from './about-dialog.svelte';
 
 	/**
 	 * ProjectsHome — the application's home screen: every LaTeX project listed as
@@ -37,6 +40,7 @@
 	 * supports them (desktop); on web only `oncreate` is shown.
 	 */
 	let {
+		platform = 'desktop',
 		projects = [],
 		oncreate,
 		onopenfolder,
@@ -49,6 +53,8 @@
 		onreveal,
 		onsettings
 	}: {
+		/** Drives the About dialog's platform line. */
+		platform?: 'web' | 'desktop';
 		projects?: Project[];
 		oncreate?: () => void;
 		/** Open an existing project folder from disk (desktop). */
@@ -70,6 +76,7 @@
 	let query = $state('');
 	let renaming = $state<string | null>(null);
 	let renameValue = $state('');
+	let aboutOpen = $state(false);
 
 	// Inline clone bar (no custom dialog — a text field + native folder picker).
 	let cloning = $state(false);
@@ -134,17 +141,25 @@
 		class="border-border flex h-14 shrink-0 items-center justify-between gap-3 border-b px-6"
 	>
 		<Logo size={26} viewTransitionName="app-logo" class="text-base tracking-tight" />
-		<div class="flex items-center gap-1">
+		<div class="flex items-center gap-0.5">
 			<ThemeToggle size="icon-sm" />
+			<Button
+				size="icon-sm"
+				variant="ghost"
+				title="About GlyphX"
+				aria-label="About GlyphX"
+				onclick={() => (aboutOpen = true)}
+			>
+				<IconInfoCircle size={16} />
+			</Button>
 			{#if onsettings}
+				<div class="bg-border mx-1 h-5 w-px"></div>
 				<Button
-					size="icon-sm"
+					size="sm"
 					variant="ghost"
-					title="Settings"
-					aria-label="Settings"
 					onclick={() => onsettings?.()}
 				>
-					<IconSettings size={16} />
+					<IconSettings size={15} /> Settings
 				</Button>
 			{/if}
 		</div>
@@ -162,27 +177,41 @@
 					</p>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
-					{#if onopenfolder}
-						<Button size="sm" variant="outline" onclick={() => onopenfolder?.()}>
-							<IconFolderOpen size={15} /> Open folder
-						</Button>
-					{/if}
-					{#if onimport}
-						<Button size="sm" variant="outline" onclick={() => onimport?.()}>
-							<IconFileImport size={15} /> Import
-						</Button>
-					{/if}
-					{#if onclone}
-						<Button
-							size="sm"
-							variant="outline"
-							onclick={() => {
-								cloning = !cloning;
-								if (cloning) cloneUrl = '';
-							}}
-						>
-							<IconCloudDownload size={15} /> Clone
-						</Button>
+					<!-- "Bring in an existing project" actions collapse into one Open menu
+					     so the primary New-project action stays unambiguous. -->
+					{#if onopenfolder || onimport || onclone}
+						<DropdownMenu>
+							<DropdownMenuTrigger>
+								{#snippet child({ props })}
+									<Button {...props} size="sm" variant="outline">
+										<IconFolderOpen size={15} /> Open
+										<IconChevronDown size={14} class="opacity-60" />
+									</Button>
+								{/snippet}
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" class="w-56">
+								{#if onopenfolder}
+									<DropdownMenuItem onclick={() => onopenfolder?.()}>
+										<IconFolderOpen class="text-muted-foreground" /> Open folder…
+									</DropdownMenuItem>
+								{/if}
+								{#if onimport}
+									<DropdownMenuItem onclick={() => onimport?.()}>
+										<IconFileImport class="text-muted-foreground" /> Import .zip…
+									</DropdownMenuItem>
+								{/if}
+								{#if onclone}
+									<DropdownMenuItem
+										onclick={() => {
+											cloning = true;
+											cloneUrl = '';
+										}}
+									>
+										<IconCloudDownload class="text-muted-foreground" /> Clone repository…
+									</DropdownMenuItem>
+								{/if}
+							</DropdownMenuContent>
+						</DropdownMenu>
 					{/if}
 					<Button size="sm" onclick={() => oncreate?.()}>
 						<IconPlus size={15} /> New project
@@ -400,6 +429,9 @@
 		</div>
 	</div>
 </div>
+
+<!-- About GlyphX — brand, version, and links out (GitHub / website). -->
+<AboutDialog bind:open={aboutOpen} {platform} />
 
 <style>
 	/* Cards settle in on load — fade + a short rise, the one shared easing.
