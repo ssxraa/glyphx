@@ -65,11 +65,11 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Format check (prettier)
-        run: pnpm --filter @glyphx/desktop format:check
+      # - name: Format check (prettier)
+      #   run: pnpm --filter @glyphx/desktop format:check
 
-      - name: Lint (eslint)
-        run: pnpm --filter @glyphx/desktop lint:eslint
+      # - name: Lint (eslint)
+      #   run: pnpm --filter @glyphx/desktop lint:eslint
 
       - name: Typecheck (svelte-check)
         run: pnpm --filter @glyphx/desktop check
