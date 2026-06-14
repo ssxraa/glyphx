@@ -73,9 +73,37 @@ pub struct GitHead {
     pub branch: Option<String>,
     /// True before the first commit (HEAD points at an unborn branch).
     pub unborn: bool,
+    /// Upstream tracking branch (e.g. `origin/main`), if one is configured.
+    pub upstream: Option<String>,
+    /// Commits the local branch is ahead of its upstream (`None` if no upstream).
+    pub ahead: Option<u32>,
+    /// Commits the local branch is behind its upstream.
+    pub behind: Option<u32>,
 }
 
-/// The repository's current branch / HEAD state.
+/// Ahead/behind counts vs the upstream, via system git (best-effort: returns all
+/// `None` when there's no upstream or git isn't installed).
+fn ahead_behind(root: &str) -> (Option<String>, Option<u32>, Option<u32>) {
+    let upstream = run_git(
+        root,
+        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+    )
+    .ok()
+    .filter(|s| !s.is_empty());
+    if upstream.is_none() {
+        return (None, None, None);
+    }
+    let mut ahead = None;
+    let mut behind = None;
+    if let Ok(counts) = run_git(root, ["rev-list", "--left-right", "--count", "HEAD...@{u}"]) {
+        let mut it = counts.split_whitespace();
+        ahead = it.next().and_then(|x| x.parse().ok());
+        behind = it.next().and_then(|x| x.parse().ok());
+    }
+    (upstream, ahead, behind)
+}
+
+/// The repository's current branch / HEAD state (plus ahead/behind vs upstream).
 #[tauri::command]
 pub async fn git_head(root: String) -> Result<GitHead, String> {
     let repo = open(&root)?;
@@ -84,7 +112,14 @@ pub async fn git_head(root: String) -> Result<GitHead, String> {
         .map_err(|e| e.to_string())?
         .map(|name| name.shorten().to_string());
     let unborn = repo.head_id().is_err();
-    Ok(GitHead { branch, unborn })
+    let (upstream, ahead, behind) = ahead_behind(&root);
+    Ok(GitHead {
+        branch,
+        unborn,
+        upstream,
+        ahead,
+        behind,
+    })
 }
 
 #[derive(Serialize)]
@@ -166,12 +201,20 @@ pub async fn git_stage(root: String, paths: Vec<String>) -> Result<(), String> {
         if abs.exists() {
             let bytes = std::fs::read(&abs).map_err(|e| e.to_string())?;
             let oid = repo.write_blob(bytes).map_err(|e| e.to_string())?.detach();
-            index.dangerously_push_entry(Stat::default(), oid, Flags::empty(), Mode::FILE, rel.as_str().into());
+            index.dangerously_push_entry(
+                Stat::default(),
+                oid,
+                Flags::empty(),
+                Mode::FILE,
+                rel.as_str().into(),
+            );
         }
         // Missing file → leave it removed from the index (staged deletion).
     }
     index.sort_entries();
-    index.write(gix::index::write::Options::default()).map_err(|e| e.to_string())
+    index
+        .write(gix::index::write::Options::default())
+        .map_err(|e| e.to_string())
 }
 
 /// Unstage paths (`git reset <path>`): reset the index entry to HEAD's version,
@@ -206,7 +249,58 @@ pub async fn git_unstage(root: String, paths: Vec<String>) -> Result<(), String>
         }
     }
     index.sort_entries();
-    index.write(gix::index::write::Options::default()).map_err(|e| e.to_string())
+    index
+        .write(gix::index::write::Options::default())
+        .map_err(|e| e.to_string())
+}
+
+/// Discard working-tree changes for `paths` (`git restore <path>`): rewrite each
+/// file from its staged (index) version, or HEAD if it isn't in the index, and
+/// delete it when it's untracked (present in neither). Pure Rust — does not touch
+/// the index, so a staged change stays staged; only the worktree is reverted.
+#[tauri::command]
+pub async fn git_discard(root: String, paths: Vec<String>) -> Result<(), String> {
+    let repo = open(&root)?;
+    let work_dir = repo
+        .work_dir()
+        .ok_or("No working tree in a bare repository.")?
+        .to_owned();
+    let index = open_index_mut(&repo);
+    let head_tree = repo.head_tree().ok();
+
+    for rel in &paths {
+        // Restore source: index blob first, then HEAD blob.
+        let blob = index
+            .entry_by_path(rel.as_str().into())
+            .and_then(|e| repo.find_object(e.id).ok())
+            .map(|o| o.data.clone())
+            .or_else(|| {
+                head_tree.as_ref().and_then(|t| {
+                    t.lookup_entry_by_path(std::path::Path::new(rel))
+                        .ok()
+                        .flatten()
+                        .and_then(|e| e.object().ok())
+                        .map(|o| o.data.clone())
+                })
+            });
+        let abs = work_dir.join(rel);
+        match blob {
+            // Tracked: rewrite the file with its committed/staged content.
+            Some(data) => {
+                if let Some(parent) = abs.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                }
+                std::fs::write(&abs, data).map_err(|e| e.to_string())?;
+            }
+            // Untracked: remove it from disk.
+            None => {
+                if abs.exists() {
+                    std::fs::remove_file(&abs).map_err(|e| e.to_string())?;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Commit the staged index. Returns the short hash.
@@ -242,7 +336,9 @@ pub async fn git_commit(root: String, message: String) -> Result<String, String>
         } else {
             gix::objs::tree::EntryKind::Blob
         };
-        editor.upsert(p, kind, entry.id).map_err(|e| e.to_string())?;
+        editor
+            .upsert(p, kind, entry.id)
+            .map_err(|e| e.to_string())?;
     }
     let tree_id = editor.write().map_err(|e| e.to_string())?.detach();
 
@@ -291,7 +387,11 @@ pub async fn git_diff(root: String, path: String, staged: bool) -> Result<String
     let head_blob = repo
         .head_tree()
         .ok()
-        .and_then(|t| t.lookup_entry_by_path(std::path::Path::new(&path)).ok().flatten())
+        .and_then(|t| {
+            t.lookup_entry_by_path(std::path::Path::new(&path))
+                .ok()
+                .flatten()
+        })
         .and_then(|e| e.object().ok())
         .map(|o| o.data.clone());
 
@@ -302,7 +402,10 @@ pub async fn git_diff(root: String, path: String, staged: bool) -> Result<String
         .map(|o| o.data.clone());
 
     let (old, new): (Vec<u8>, Vec<u8>) = if staged {
-        (head_blob.unwrap_or_default(), index_blob.unwrap_or_default())
+        (
+            head_blob.unwrap_or_default(),
+            index_blob.unwrap_or_default(),
+        )
     } else {
         let worktree = std::fs::read(work_dir.join(&path)).unwrap_or_default();
         (index_blob.or(head_blob).unwrap_or_default(), worktree)
@@ -412,6 +515,31 @@ pub async fn git_remotes(root: String) -> Result<Vec<GitRemote>, String> {
     Ok(out)
 }
 
+/// Add a new remote (`git remote add`). Uses system git so the config is written
+/// exactly as the CLI would (gitoxide's config write surface is limited).
+#[tauri::command]
+pub async fn git_remote_add(root: String, name: String, url: String) -> Result<(), String> {
+    run_git(&root, ["remote", "add", name.as_str(), url.as_str()]).map(|_| ())
+}
+
+/// Change a remote's URL (`git remote set-url`).
+#[tauri::command]
+pub async fn git_remote_set_url(root: String, name: String, url: String) -> Result<(), String> {
+    run_git(&root, ["remote", "set-url", name.as_str(), url.as_str()]).map(|_| ())
+}
+
+/// Rename a remote (`git remote rename`), moving its tracking refs too.
+#[tauri::command]
+pub async fn git_remote_rename(root: String, from: String, to: String) -> Result<(), String> {
+    run_git(&root, ["remote", "rename", from.as_str(), to.as_str()]).map(|_| ())
+}
+
+/// Remove a remote (`git remote remove`).
+#[tauri::command]
+pub async fn git_remote_remove(root: String, name: String) -> Result<(), String> {
+    run_git(&root, ["remote", "remove", name.as_str()]).map(|_| ())
+}
+
 /// Fetch from origin (or `url` if given, with token), updating tracking refs.
 #[tauri::command]
 pub async fn git_fetch(root: String, url: Option<String>) -> Result<(), String> {
@@ -514,7 +642,19 @@ mod tests {
             .iter()
             .any(|c| c.path == "main.tex" && !c.staged && c.status == "modified"));
 
-        let diff = block_on(git_diff(root, "main.tex".into(), false)).unwrap();
+        let diff = block_on(git_diff(root.clone(), "main.tex".into(), false)).unwrap();
         assert!(diff.contains("+changed"));
+
+        // Discard the modification → file reverts to the committed content, clean tree.
+        block_on(git_discard(root.clone(), vec!["main.tex".into()])).unwrap();
+        let reverted = std::fs::read(dir.path().join("main.tex")).unwrap();
+        assert_eq!(reverted, b"\\documentclass{article}");
+        let clean = block_on(git_status(root.clone())).unwrap();
+        assert!(!clean.iter().any(|c| c.path == "main.tex"));
+
+        // Discard an untracked file → it is deleted from disk.
+        std::fs::write(dir.path().join("scratch.tex"), b"temp").unwrap();
+        block_on(git_discard(root.clone(), vec!["scratch.tex".into()])).unwrap();
+        assert!(!dir.path().join("scratch.tex").exists());
     }
 }

@@ -20,6 +20,8 @@
 	  IconFold,
 	  IconFolderOpen,
 	  IconFolderPlus,
+	  IconFolderShare,
+	  IconFolders,
 	  IconGitBranch,
 	  IconList,
 	  IconMinus,
@@ -73,6 +75,7 @@
 		onnew,
 		onnewfolder,
 		onopenfolder,
+		onreveal,
 		onrenamefile,
 		ondeletefile,
 		onsetmain,
@@ -115,6 +118,8 @@
 		onnew?: () => void;
 		onnewfolder?: () => void;
 		onopenfolder?: () => void;
+		/** Reveal the open project folder in the OS file manager. Absent = unavailable. */
+		onreveal?: () => void;
 		onrenamefile?: (id: string, name: string) => void;
 		ondeletefile?: (id: string) => void;
 		onsetmain?: (id: string) => void;
@@ -152,6 +157,12 @@
 					? 'Source Control'
 					: 'Settings'
 	);
+
+	// --- Source Control header actions (refresh + view toggle live here, next to
+	// the heading, like the Explorer/Search views). GitPanel reports its state
+	// back so we can show/disable the buttons; bumping the key forces a refresh.
+	let gitRefreshKey = $state(0);
+	let gitState = $state<{ isRepo: boolean; loading: boolean }>({ isRepo: false, loading: false });
 
 	// Folder-based project tree — file names split on "/" nest into folders.
 	// `extraFolders` injects folders that have no files yet (freshly created),
@@ -386,7 +397,18 @@
 						<IconFold size={15} />
 					</button>
 				{/if}
-				{#if hasProject}
+				{#if onreveal}
+					<!-- A project is open: reveal it in the OS file manager. Opening a
+					     different project stays on ⌘/Ctrl+O and the File menu. -->
+					<button
+						class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+						title="Reveal in file explorer"
+						aria-label="Reveal in file explorer"
+						onclick={() => onreveal?.()}
+					>
+						<IconFolderShare size={15} />
+					</button>
+				{:else if hasProject}
 					<button
 						class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
 						title="Open folder (⌘/Ctrl+O)"
@@ -426,6 +448,26 @@
 					onclick={() => (resultsCollapsed = !resultsCollapsed)}
 				>
 					<IconFold size={15} />
+				</button>
+			</div>
+		{:else if view === 'git' && git && projectRoot && gitState.isRepo}
+			<div class="-mr-1 flex items-center gap-0.5">
+				<button
+					class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors"
+					title={settings.gitView === 'tree' ? 'View as list' : 'View as tree'}
+					aria-label={settings.gitView === 'tree' ? 'View as list' : 'View as tree'}
+					onclick={() => (settings.gitView = settings.gitView === 'tree' ? 'list' : 'tree')}
+				>
+					{#if settings.gitView === 'tree'}<IconList size={15} />{:else}<IconFolders size={15} />{/if}
+				</button>
+				<button
+					class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:opacity-40"
+					title="Refresh"
+					aria-label="Refresh"
+					disabled={gitState.loading}
+					onclick={() => (gitRefreshKey += 1)}
+				>
+					<IconRefresh size={15} />
 				</button>
 			</div>
 		{/if}
@@ -702,7 +744,12 @@
 			</div>
 		{:else if view === 'git'}
 			{#if git}
-				<GitPanel {git} root={projectRoot} />
+				<GitPanel
+					{git}
+					root={projectRoot}
+					refreshKey={gitRefreshKey}
+					onstatechange={(s) => (gitState = s)}
+				/>
 			{:else}
 				<div
 					class="text-muted-foreground flex flex-col items-center gap-2 px-2 py-8 text-center text-xs"

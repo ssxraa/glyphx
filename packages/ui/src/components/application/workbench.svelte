@@ -82,11 +82,11 @@ Nothing is uploaded. Nothing leaves this device.
     IconPencil,
     IconPlayerPlayFilled,
     IconPlus,
-    IconRefresh,
-    IconSearch,
+    IconSearch
   } from "@tabler/icons-svelte";
   import { onDestroy, onMount } from "svelte";
 
+  import AboutDialog from "./about-dialog.svelte";
   import ActivityBar, { type ActivityView } from "./activity-bar.svelte";
   import { applyCase } from "./case-preserve";
   import CodeEditor from "./code-editor.svelte";
@@ -100,6 +100,8 @@ Nothing is uploaded. Nothing leaves this device.
   import PdfView from "./pdf-view.svelte";
   import ProblemsPanel from "./problems-panel.svelte";
   import type { ProjectHost } from "./project";
+  import { matchShortcut, shortcutLabel } from "./shortcuts";
+  import ShortcutsDialog from "./shortcuts-dialog.svelte";
   import SidePanel from "./side-panel.svelte";
 
   /**
@@ -976,6 +978,16 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     }
   }
 
+  /** Reveal the open project folder in the OS file manager (Explorer / Finder). */
+  async function revealProject(): Promise<void> {
+    if (!project?.revealInOS || !projectRoot) return;
+    try {
+      await project.revealInOS(projectRoot);
+    } catch (e) {
+      toast.error(`Could not reveal the folder — ${e}`);
+    }
+  }
+
   /** Register the OS "Open with GlyphX" folder integration (desktop, Windows). */
   async function registerShell(): Promise<void> {
     if (!project?.registerShellIntegration) return;
@@ -1050,6 +1062,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
   // Top bar: quick-open palette (the VS Code command centre). `projectName`
   // is a prop now (the open project's name).
   let paletteOpen = $state(false);
+  // Help menu dialogs.
+  let aboutOpen = $state(false);
+  let shortcutsOpen = $state(false);
 
   // Snapshot of the current files (active file's live source merged in).
   function snapshotFiles(): GlyphFile[] {
@@ -1440,15 +1455,19 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     {
       label: "File",
       items: [
-        { label: "New File", run: () => newFile() },
+        {
+          label: "New File",
+          shortcut: shortcutLabel("new-file"),
+          run: () => newFile(),
+        },
         {
           label: "Open File…",
-          shortcut: "⌘P",
+          shortcut: shortcutLabel("quick-open"),
           run: () => (paletteOpen = true),
         },
         {
           label: "Open Folder…",
-          shortcut: "⌘O",
+          shortcut: shortcutLabel("open-folder"),
           disabled: !project,
           run: () => openFolder(),
         },
@@ -1466,7 +1485,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         { type: "separator" },
         {
           label: "Compile",
-          shortcut: "⌘S",
+          shortcut: shortcutLabel("compile"),
           disabled: !canCompile,
           run: () => runCompile(true),
         },
@@ -1475,8 +1494,18 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     {
       label: "Edit",
       items: [
-        { label: "Undo", shortcut: "⌘Z", disabled: !canUndo, run: () => editor?.undo() },
-        { label: "Redo", shortcut: "⌘⇧Z", disabled: !canRedo, run: () => editor?.redo() },
+        {
+          label: "Undo",
+          shortcut: shortcutLabel("undo"),
+          disabled: !canUndo,
+          run: () => editor?.undo(),
+        },
+        {
+          label: "Redo",
+          shortcut: shortcutLabel("redo"),
+          disabled: !canRedo,
+          run: () => editor?.redo(),
+        },
         { type: "separator" },
         { label: "Bold", run: () => editor?.wrapSelection("\\textbf{", "}") },
         { label: "Italic", run: () => editor?.wrapSelection("\\textit{", "}") },
@@ -1498,7 +1527,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         { type: "separator" },
         {
           label: "Find in File",
-          shortcut: "⌘F",
+          shortcut: shortcutLabel("find"),
           run: () => {
             activeView = "search";
             panelCollapsed = false;
@@ -1543,6 +1572,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         { type: "separator" },
         {
           label: "Toggle Sidebar",
+          shortcut: shortcutLabel("toggle-sidebar"),
           checked: !panelCollapsed,
           run: () => (panelCollapsed = !panelCollapsed),
         },
@@ -1558,11 +1588,15 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       items: [
         {
           label: "Go to File…",
-          shortcut: "⌘P",
+          shortcut: shortcutLabel("quick-open"),
           run: () => (paletteOpen = true),
         },
         { type: "separator" },
-        { label: "Sync to PDF", shortcut: "⌘J", run: () => syncToPdf() },
+        {
+          label: "Sync to PDF",
+          shortcut: shortcutLabel("sync-pdf"),
+          run: () => syncToPdf(),
+        },
       ],
     },
     {
@@ -1570,7 +1604,7 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       items: [
         {
           label: "Compile",
-          shortcut: "⌘S",
+          shortcut: shortcutLabel("compile"),
           disabled: !canCompile,
           run: () => runCompile(true),
         },
@@ -1581,49 +1615,51 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
           run: () => (settings.autoCompile = !settings.autoCompile),
         },
         { type: "separator" },
-        { label: "Sync to PDF", shortcut: "⌘J", run: () => syncToPdf() },
+        {
+          label: "Sync to PDF",
+          shortcut: shortcutLabel("sync-pdf"),
+          run: () => syncToPdf(),
+        },
       ],
     },
     {
       label: "Help",
       items: [
-        { label: "Keyboard Shortcuts", disabled: true },
+        {
+          label: "Keyboard Shortcuts",
+          run: () => (shortcutsOpen = true),
+        },
         { type: "separator" },
         {
           label: "About GlyphX",
-          run: () => toast.message(`GlyphX — local-first LaTeX (${platform})`),
+          run: () => (aboutOpen = true),
         },
       ],
     },
   ]);
 
+  // App-level shortcuts, matched against the shared registry so the keys here,
+  // the menu hints, and the Keyboard Shortcuts dialog can never drift apart.
+  // Editor-scoped combos (Undo / Redo) are handled by CodeMirror itself when the
+  // editor is focused, so they're intentionally not intercepted here.
   function onKeydown(e: KeyboardEvent) {
+    // Cheap early-out: every app shortcut carries a Mod (⌘/Ctrl).
     if (!(e.ctrlKey || e.metaKey)) return;
-    // Ctrl/Cmd+S or Ctrl/Cmd+Enter forces an immediate compile.
-    if (e.key === "s" || e.key === "Enter") {
-      e.preventDefault();
-      runCompile(true);
-    }
-    // Ctrl/Cmd+J jumps the PDF to the caret's line (forward sync).
-    if (e.key === "j" || e.key === "J") {
-      e.preventDefault();
-      syncToPdf();
-    }
-    // Ctrl/Cmd+P opens the quick-open palette.
-    if (e.key === "p" || e.key === "P") {
-      e.preventDefault();
-      paletteOpen = true;
-    }
-    // Ctrl/Cmd+O opens a project folder (desktop).
-    if ((e.key === "o" || e.key === "O") && project) {
-      e.preventDefault();
-      void openFolder();
-    }
-    // Ctrl/Cmd+F opens the docked find/replace bar over the editor.
-    // (The full project-wide Search view still lives in the activity bar.)
-    if (e.key === "f" || e.key === "F") {
-      e.preventDefault();
-      openFind();
+    const actions: Array<[string, () => void]> = [
+      ["compile", () => runCompile(true)],
+      ["sync-pdf", () => syncToPdf()],
+      ["quick-open", () => (paletteOpen = true)],
+      ["find", () => openFind()],
+      ["new-file", () => void newFile()],
+      ["toggle-sidebar", () => (panelCollapsed = !panelCollapsed)],
+    ];
+    if (project) actions.push(["open-folder", () => void openFolder()]);
+    for (const [id, run] of actions) {
+      if (matchShortcut(e, id)) {
+        e.preventDefault();
+        run();
+        return;
+      }
     }
   }
 
@@ -1673,12 +1709,12 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
       <Select bind:value={viewMode} type="single" name="viewMode">
         <SelectTrigger
           size="sm"
-          class="w-auto min-w-0 border-0"
+          class="w-auto min-w-0 border-0 text-xs font-normal focus:ring-0"
           aria-label="Select view mode"
         >
           {@const Icon = viewOptions.find((o) => o.value === viewMode)?.icon}
           {#if Icon}
-            <Icon class="inline-block" />
+            <Icon class="inline-block size-4" />
           {/if}
           {viewMode === "editor"
             ? "Editor only"
@@ -1780,6 +1816,9 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
         onnew={newFile}
         onnewfolder={newFolder}
         onopenfolder={openFolder}
+        onreveal={project?.revealInOS && projectRoot
+          ? revealProject
+          : undefined}
         onrenamefile={renameFile}
         ondeletefile={deleteFile}
         onsetmain={setMain}
@@ -1959,18 +1998,6 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
                 {/if}
                 {compileLabel}
               </span>
-              <button
-                class="hover:bg-muted hover:text-foreground grid size-6 place-items-center rounded transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
-                title="Recompile (⌘/Ctrl+S)"
-                aria-label="Recompile"
-                disabled={!canCompile || compiling}
-                onclick={() => runCompile(true)}
-              >
-                <IconRefresh
-                  size={13}
-                  class={compiling ? "animate-spin" : ""}
-                />
-              </button>
 
               {#if pdfBytes}
                 <!-- Find + page count + zoom + download -->
@@ -2276,6 +2303,10 @@ We observe that $\hat{\theta}$ is consistent, with $\alpha$ scaling as $\beta^2$
     {/if}
   </DialogContent>
 </Dialog>
+
+<!-- Help: About card + the keyboard-shortcuts reference (both registry-driven). -->
+<AboutDialog bind:open={aboutOpen} {platform} />
+<ShortcutsDialog bind:open={shortcutsOpen} />
 
 <!-- Toast feedback (bottom-right; matches the app's corner-notification language). -->
 <Toaster />

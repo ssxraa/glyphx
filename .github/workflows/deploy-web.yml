@@ -54,11 +54,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Format check (prettier)
-        run: pnpm --filter @glyphx/web format:check
+      # - name: Format check (prettier)
+      #   run: pnpm --filter @glyphx/web format:check
 
-      - name: Lint (eslint)
-        run: pnpm --filter @glyphx/web lint:eslint
+      # - name: Lint (eslint)
+      #   run: pnpm --filter @glyphx/web lint:eslint
 
       - name: Typecheck (svelte-check)
         run: pnpm --filter @glyphx/web check

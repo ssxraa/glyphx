@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
+import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import type { ProjectFile, ProjectHost } from '@glyphx/ui/application';
 
 /**
@@ -52,6 +53,8 @@ export const projectHost: ProjectHost = {
 		await invoke<void>('export_zip', { root, outPath: out });
 		return true;
 	},
+
+	revealInOS: (path) => revealItemInDir(path),
 
 	takeLaunchPath: () => invoke<string | null>('take_launch_path'),
 	onOpenPath: (cb) => listen<string>('glyphx://open-path', (e) => cb(e.payload)),

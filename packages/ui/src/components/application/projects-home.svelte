@@ -17,6 +17,7 @@
 	import { ThemeToggle } from '@glyphx/ui/theme-toggle';
 	import {
 		IconCopy,
+		IconCloudDownload,
 		IconDotsVertical,
 		IconFileImport,
 		IconFolderOpen,
@@ -39,6 +40,7 @@
 		oncreate,
 		onopenfolder,
 		onimport,
+		onclone,
 		onopen,
 		onrename,
 		onduplicate,
@@ -51,6 +53,8 @@
 		onopenfolder?: () => void;
 		/** Import a .zip project (desktop). */
 		onimport?: () => void;
+		/** Clone a Git repository by URL (desktop). */
+		onclone?: (url: string) => void | Promise<void>;
 		onopen?: (id: string) => void;
 		onrename?: (id: string, name: string) => void;
 		onduplicate?: (id: string) => void;
@@ -62,6 +66,24 @@
 	let query = $state('');
 	let renaming = $state<string | null>(null);
 	let renameValue = $state('');
+
+	// Inline clone bar (no custom dialog — a text field + native folder picker).
+	let cloning = $state(false);
+	let cloneUrl = $state('');
+	let cloneBusy = $state(false);
+
+	async function submitClone() {
+		const url = cloneUrl.trim();
+		if (!url || cloneBusy) return;
+		cloneBusy = true;
+		try {
+			await onclone?.(url);
+			cloneUrl = '';
+			cloning = false;
+		} finally {
+			cloneBusy = false;
+		}
+	}
 
 	const filtered = $derived(
 		projects.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
@@ -125,6 +147,19 @@
 					Import
 				</Button>
 			{/if}
+			{#if onclone}
+				<Button
+					size="sm"
+					variant="outline"
+					onclick={() => {
+						cloning = !cloning;
+						if (cloning) cloneUrl = '';
+					}}
+				>
+					<IconCloudDownload size={15} />
+					Clone
+				</Button>
+			{/if}
 			{#if onopenfolder}
 				<Button size="sm" variant="outline" onclick={() => onopenfolder?.()}>
 					<IconFolderOpen size={15} />
@@ -137,6 +172,32 @@
 			</Button>
 		</div>
 	</header>
+
+	<!-- Clone bar -->
+	{#if onclone && cloning}
+		<div class="border-border bg-muted/30 flex shrink-0 items-center gap-2 border-b px-5 py-2.5">
+			<IconCloudDownload size={16} class="text-muted-foreground shrink-0" />
+			<!-- svelte-ignore a11y_autofocus -->
+			<input
+				bind:value={cloneUrl}
+				class="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-9 min-w-0 flex-1 rounded-lg border px-3 text-sm outline-none focus-visible:ring-2"
+				placeholder="Repository URL — https://github.com/owner/repo.git"
+				spellcheck="false"
+				autofocus
+				disabled={cloneBusy}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') submitClone();
+					if (e.key === 'Escape') cloning = false;
+				}}
+			/>
+			<Button size="sm" disabled={cloneBusy || !cloneUrl.trim()} onclick={submitClone}>
+				{cloneBusy ? 'Cloning…' : 'Clone'}
+			</Button>
+			<Button size="sm" variant="ghost" disabled={cloneBusy} onclick={() => (cloning = false)}>
+				Cancel
+			</Button>
+		</div>
+	{/if}
 
 	<div class="min-h-0 flex-1 overflow-auto">
 		<div class="mx-auto w-full max-w-[1100px] px-6 py-8">

@@ -38,6 +38,9 @@ export type ProjectHost = {
 	/** Export a project folder to a `.zip` via a native save dialog. False = cancelled. */
 	exportZip: (root: string, defaultName: string) => Promise<boolean>;
 
+	/** Reveal a file / folder in the OS file manager (Explorer / Finder / …). */
+	revealInOS?: (path: string) => Promise<void>;
+
 	/** Path GlyphX was launched to open (file association); consumed once. */
 	takeLaunchPath?: () => Promise<string | null>;
 	/** Subscribe to later open-path events (a second launch). Returns an unsubscribe fn. */

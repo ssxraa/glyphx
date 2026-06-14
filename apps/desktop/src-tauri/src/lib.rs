@@ -32,6 +32,7 @@ fn take_launch_path(state: tauri::State<'_, LaunchPath>) -> Option<String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         // Single-instance: a second launch (e.g. double-clicking another file)
         // forwards its path to the running window instead of opening a new app.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -91,11 +92,16 @@ pub fn run() {
             git::git_status,
             git::git_stage,
             git::git_unstage,
+            git::git_discard,
             git::git_diff,
             git::git_commit,
             git::git_log,
             git::git_clone,
             git::git_remotes,
+            git::git_remote_add,
+            git::git_remote_set_url,
+            git::git_remote_rename,
+            git::git_remote_remove,
             git::git_fetch,
             git::git_pull,
             git::git_push,

@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "GlyphX — local-first, privacy-first LaTeX editor. Desktop (Tauri) + web, sharing one UI.",
+  "license": "GPL-3.0-or-later",
   "packageManager": "pnpm@10.23.0",
   "engines": {
     "node": ">=22"

@@ -17,6 +17,8 @@ export type Appearance = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 export type LatexGrammar = "legacy" | "lezer";
 export type EditorFont = "jetbrains" | "geist";
+/** Source Control changes layout: flat list vs collapsible folder tree. */
+export type GitView = "tree" | "list";
 /** Which compile engine to use. `tectonic` = bundled; `system` = local TeX install. */
 export type EngineKind = "tectonic" | "system";
 /** TeX program latexmk drives when {@link EngineKind} is `system`. */
@@ -74,12 +76,14 @@ export const COMPILE_DEBOUNCE_MS = 650;
 
 export const APPEARANCE_KEY = "glyphx:appearance";
 export const EDITOR_KEY = "glyphx:editor";
+export const GIT_VIEW_KEY = "glyphx:git-view";
 
 const isBrowser = typeof window !== "undefined";
 
 class SettingsStore {
 	#appearance = new PersistedState<Appearance>(APPEARANCE_KEY, "system");
 	#editor = new PersistedState<EditorSettings>(EDITOR_KEY, EDITOR_DEFAULTS);
+	#gitView = new PersistedState<GitView>(GIT_VIEW_KEY, "tree");
 
 	/** OS preference. Light on the server; corrected on the client. */
 	#system = $state<ResolvedTheme>("light");
@@ -212,6 +216,15 @@ class SettingsStore {
 	}
 	set texProgram(value: TexProgram) {
 		this.patchEditor({ texProgram: value });
+	}
+
+	// --- source control -------------------------------------------------------
+	/** Source Control changes layout (persisted). */
+	get gitView(): GitView {
+		return this.#gitView.current;
+	}
+	set gitView(value: GitView) {
+		this.#gitView.current = value;
 	}
 }
 
